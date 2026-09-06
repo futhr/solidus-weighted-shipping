@@ -29,6 +29,7 @@ module SolidusWeightedShipping
       migrated_keys = []
 
       if RATE_KEYS.any? { |key| key?(source, key) }
+        delete(migrated, :rate_table)
         migrated[:rate_table] = RateTable.from_legacy(
           thresholds: fetch(source, :weight_table),
           prices: fetch(source, :price_table)
@@ -40,6 +41,7 @@ module SolidusWeightedShipping
       SCALAR_KEYS.each do |legacy_key, canonical_key|
         next unless key?(source, legacy_key)
 
+        delete(migrated, canonical_key)
         migrated[canonical_key] = fetch(source, legacy_key)
         delete(migrated, legacy_key)
         migrated_keys << legacy_key

@@ -58,6 +58,21 @@ RSpec.describe SolidusWeightedShipping::LegacyPreferences do
       expect(described_class.legacy?(source)).to be(false)
     end
 
+    it "removes stale string-keyed canonical values before writing migrated values" do
+      migration = described_class.migrate(
+        "rate_table" => "1: 99",
+        "free_shipping_threshold" => "999",
+        "weight_table" => "1 2",
+        "price_table" => "3 4",
+        "max_price" => "120"
+      )
+
+      expect(migration.preferences).to eq(
+        rate_table: "1: 3\n2: 4",
+        free_shipping_threshold: "120"
+      )
+    end
+
     it "rejects incomplete or invalid historical tables without mutating input" do
       source = {weight_table: "2 1", price_table: "3 4"}
       original = source.dup
