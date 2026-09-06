@@ -60,7 +60,7 @@ RSpec.describe SolidusWeightedShipping::LegacyPreferences do
 
     it "preserves unchanged fees and currency from string-keyed historical data" do
       migration = described_class.migrate(
-        handling_fee: decimal("10"),
+        :handling_fee => decimal("10"),
         "weight_table" => "1 2",
         "price_table" => "3 4",
         "handling_fee" => "2.50",

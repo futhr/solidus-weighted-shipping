@@ -69,11 +69,12 @@ Release candidate: `4.0.0.pre`.
 - Reject contradictory quote states and boolean dimensions; copy mutable
   unavailable reasons so quote hashes remain stable.
 - Remove conflicting serialized keys during migration and validate calculators
-  that already use the new format.
+  that already use the new format. Preserve string-keyed fees and currencies.
 - Build from source archives without requiring Git. Include contributor and
   security files referenced by the README.
 - Reject focused examples in CI and keep mutation runs from overwriting
   coverage reports. Repair archive links in this changelog.
+- Preserve existing package artifacts and coverage when rebuilding the sandbox.
 
 ### Changed
 

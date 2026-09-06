@@ -24,6 +24,8 @@ repository visibility change, or GitHub configuration change was performed.
 | Passing compatibility tests hid vulnerable Rails resolutions. | Require patched Rails minimums and audit every matrix row. | `7359e9b` |
 | Currency tests used integer prices for every currency. | Verify JPY whole units and KWD three-decimal amounts without implicit rounding. | `204f91d` |
 | Docs repeated diagrams and overstated verification. | Explain actual boundaries, fix archive links, correct Codecov/Dependabot claims, and separate local preparation from publication. | `c7a0efa` |
+| Historical string-keyed fees and currency were not converted. | Preserve the stored fee instead of a merged default and retain the currency restriction under the symbol key Solidus reads. | `88e5167` |
+| Sandbox setup invoked the broad `clobber` task. | Let Solidus rebuild only the generated app; preserve package artifacts and coverage reports. | `ef5568c` |
 
 The pricing boundaries were preserved: item limits and rate bands are inclusive;
 free shipping requires an order total strictly above the threshold; handling
@@ -39,17 +41,19 @@ new commits because nothing was pushed.
 
 | Ruby | Rails | Solidus | Result |
 | --- | --- | --- | --- |
-| 3.3.12 | 7.2.3.2 | 4.6.2 | 102 non-browser examples passed |
-| 3.4.10 | 7.2.3.2 | 4.6.2 | 102 non-browser examples passed |
-| 3.4.10 | 7.2.3.2 | 4.7.0 | 102 non-browser examples passed |
-| 3.4.10 | 8.0.5.1 | 4.7.0 | 102 non-browser examples passed |
-| 4.0.6 | 8.1.3.1 | 4.7.0 | 107 examples passed, including browser specs |
+| 3.3.12 | 7.2.3.2 | 4.6.2 | 104 non-browser examples passed |
+| 3.4.10 | 7.2.3.2 | 4.6.2 | 104 non-browser examples passed |
+| 3.4.10 | 7.2.3.2 | 4.7.0 | 104 non-browser examples passed |
+| 3.4.10 | 8.0.5.1 | 4.7.0 | 104 non-browser examples passed |
+| 4.0.6 | 8.1.3.1 | 4.7.0 | 109 examples passed, including browser specs |
 
-- Coverage: 99.28% of lines (549/553) and 96.82% of branches (213/220).
+- Coverage: 99.29% of lines (556/560) and 96.85% of branches (215/222).
 - Mutation: all 382 selected mutants killed, with no survivors or timeouts.
   Checked on Ruby 3.3 and 4.0; Ruby 4.0 emits a parser compatibility warning.
 - StandardRB, Solidus RuboCop rules, actionlint, and markdownlint passed.
 - An intentionally focused test was rejected with `CI=true`.
+- Sandbox setup was checked with an existing package artifact and coverage
+  report; both survived the rebuild.
 - The eight browser screenshots were inspected: expected rates and admin
   validation appeared correctly with generated data.
 - The source-archive packaging test passed, including a strict gem build and
