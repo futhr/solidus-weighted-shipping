@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.required_ruby_version = Gem::Requirement.new(">= 3.2")
+  spec.required_ruby_version = Gem::Requirement.new(">= 3.3")
 
   files = Dir.chdir(__dir__) { `git ls-files -z`.split("\x0").select { |file| File.file?(file) } }
   spec.files = files.select do |file|
@@ -30,15 +30,7 @@ Gem::Specification.new do |spec|
   end
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "solidus_core", ">= 4.6", "< 5"
-  spec.add_dependency "solidus_support", ">= 0.12"
-
-  spec.add_development_dependency "solidus_dev_support", "~> 2.12"
-  spec.add_development_dependency "bundler-audit", "~> 0.9"
-  spec.add_development_dependency "faraday-retry", "~> 2.4"
-  spec.add_development_dependency "mutant-rspec", ">= 0.15", "< 0.17"
-  spec.add_development_dependency "rantly", ">= 2.0", "< 4"
-  spec.add_development_dependency "rspec", "~> 3.13"
-  spec.add_development_dependency "simplecov-lcov", "~> 0.9"
-  spec.add_development_dependency "standard", "~> 1.56"
+  spec.add_dependency "bigdecimal", ">= 3.1", "< 5"
+  spec.add_dependency "solidus_core", ">= 4.6.2", "< 5"
+  spec.add_dependency "solidus_support", ">= 0.12", "< 1"
 end

@@ -40,8 +40,9 @@ RSpec.describe "the packaged gem" do
     dependencies = specification.runtime_dependencies.to_h { |dependency| [dependency.name, dependency.requirement.to_s] }
 
     expect(dependencies).to eq(
-      "solidus_core" => ">= 4.6, < 5",
-      "solidus_support" => ">= 0.12"
+      "bigdecimal" => ">= 3.1, < 5",
+      "solidus_core" => ">= 4.6.2, < 5",
+      "solidus_support" => ">= 0.12, < 1"
     )
   end
 end

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -24,23 +25,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - ruby: "3.2"
-            solidus: "v4.6"
-            rails: "7.0"
-          - ruby: "3.4"
-            solidus: "v4.6"
+          - ruby: "3.3"
+            solidus: "4.6"
             rails: "7.2"
           - ruby: "3.4"
-            solidus: "v4.7"
+            solidus: "4.6"
             rails: "7.2"
+          - ruby: "3.4"
+            solidus: "4.7"
+            rails: "7.2"
+          - ruby: "3.4"
+            solidus: "4.7"
+            rails: "8.0"
           - ruby: "4.0"
-            solidus: "v4.7"
+            solidus: "4.7"
             rails: "8.1"
     runs-on: ubuntu-latest
     env:
-      SOLIDUS_BRANCH: ${{ matrix.solidus }}
+      SOLIDUS_VERSION: ${{ matrix.solidus }}
       RAILS_VERSION: ${{ matrix.rails }}
-      RUBYOPT: ${{ matrix.ruby == '3.2' && '-W:no-experimental' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
@@ -48,12 +51,12 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
           cache-version: ${{ matrix.solidus }}-rails-${{ matrix.rails }}
-      - run: bin/rake extension:specs
+      - run: bin/rake extension:specs SPEC_OPTS="--exclude-pattern spec/system/**/*_spec.rb"
 
   quality:
     runs-on: ubuntu-latest
     env:
-      SOLIDUS_BRANCH: "v4.7"
+      SOLIDUS_VERSION: "4.7"
       RAILS_VERSION: "8.1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -67,6 +70,7 @@ jobs:
       - name: Upload coverage to Codecov
         if: >-
           vars.CODECOV_ENABLED == 'true' &&
+          !startsWith(github.ref, 'refs/tags/') &&
           (github.event_name != 'pull_request' ||
           github.event.pull_request.head.repo.full_name == github.repository)
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -82,11 +86,18 @@ jobs:
           path: coverage/
           if-no-files-found: error
           retention-days: 14
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: weighted-shipping-browser-evidence
+          path: tmp/screenshots/
+          if-no-files-found: error
+          retention-days: 14
 
   mutation:
     runs-on: ubuntu-latest
     env:
-      SOLIDUS_BRANCH: "v4.7"
+      SOLIDUS_VERSION: "4.7"
       RAILS_VERSION: "7.2"
       MUTANT_JOBS: "2"
     steps:
@@ -98,32 +109,10 @@ jobs:
           cache-version: mutation-ruby-3.3-v4.7-rails-7.2
       - run: bundle exec rake quality:mutation
 
-  browser:
-    runs-on: ubuntu-latest
-    env:
-      SOLIDUS_BRANCH: "v4.7"
-      RAILS_VERSION: "8.1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
-        with:
-          ruby-version: "4.0"
-          bundler-cache: true
-          cache-version: browser-v4.7-rails-8.1
-      - run: bin/rake extension:test_app
-      - run: bundle exec rspec spec/system
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
-        with:
-          name: weighted-shipping-browser-evidence
-          path: tmp/screenshots/
-          if-no-files-found: error
-          retention-days: 14
-
   package:
     runs-on: ubuntu-latest
     env:
-      SOLIDUS_BRANCH: "v4.7"
+      SOLIDUS_VERSION: "4.7"
       RAILS_VERSION: "8.1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -18,14 +18,18 @@ env:
   GIT_CONFIG_VALUE_0: main
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: checks
     runs-on: ubuntu-latest
     environment: release
     permissions:
       contents: write
       id-token: write
     env:
-      SOLIDUS_BRANCH: "v4.7"
+      SOLIDUS_VERSION: "4.7"
       RAILS_VERSION: "8.1"
       MUTANT_JOBS: "2"
     steps:
@@ -45,9 +49,6 @@ jobs:
           expected_tag="v$(ruby -Ilib -rsolidus_weighted_shipping/version -e 'puts SolidusWeightedShipping::VERSION')"
           test "$GITHUB_REF_NAME" = "$expected_tag"
           ruby -Ilib -rsolidus_weighted_shipping/version -e 'abort "prerelease versions require a separate release decision" if Gem::Version.new(SolidusWeightedShipping::VERSION).prerelease?'
-      - run: bin/rake quality:coverage
-      - run: bin/rake quality:lint
-      - run: bin/rake quality:mutation
       - run: bundle exec bundle-audit check --update
       - uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1
       - name: Record published artifact checksum
