@@ -12,7 +12,8 @@ end
 rails_version = ENV.fetch("RAILS_VERSION", "8.1")
 rails_gem_version = Gem::Version.new(rails_version)
 rails_minor = rails_gem_version.segments.first(2).join(".")
-gem "rails", "~> #{rails_minor}.0"
+rails_minimum = {"7.2" => "7.2.3.2", "8.0" => "8.0.5.1", "8.1" => "8.1.3.1"}.fetch(rails_minor, "#{rails_minor}.0")
+gem "rails", "~> #{rails_minor}.0", ">= #{rails_minimum}"
 gem "sqlite3", "~> 2.0"
 
 gem "csv" if Gem.ruby_version >= Gem::Version.new("3.4")

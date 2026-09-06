@@ -52,6 +52,7 @@ jobs:
           bundler-cache: true
           cache-version: ${{ matrix.solidus }}-rails-${{ matrix.rails }}
       - run: bin/rake extension:specs SPEC_OPTS="--exclude-pattern spec/system/**/*_spec.rb"
+      - run: bundle exec bundle-audit check --update
 
   quality:
     runs-on: ubuntu-latest
