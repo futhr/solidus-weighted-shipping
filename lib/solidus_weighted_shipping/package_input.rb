@@ -85,8 +85,10 @@ module SolidusWeightedShipping
     end
 
     def merchandise_total
-      items.sum(BigDecimal("0")) do |item|
-        item.unit_price_in_currency_units * item.quantity
+      Decimal.with_full_precision do
+        items.sum(BigDecimal("0")) do |item|
+          item.unit_price_in_currency_units * item.quantity
+        end
       end
     end
 
@@ -94,10 +96,12 @@ module SolidusWeightedShipping
       fallback = Decimal.coerce(default_weight, name: "default weight", error_class: InputError)
       raise InputError, "default weight must be greater than zero" unless fallback.positive?
 
-      items.sum(BigDecimal("0")) do |item|
-        weight = item.weight_in_store_units
-        effective_weight = weight&.positive? ? weight : fallback
-        effective_weight * item.quantity
+      Decimal.with_full_precision do
+        items.sum(BigDecimal("0")) do |item|
+          weight = item.weight_in_store_units
+          effective_weight = weight&.positive? ? weight : fallback
+          effective_weight * item.quantity
+        end
       end
     end
 

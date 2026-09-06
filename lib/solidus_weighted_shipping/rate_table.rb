@@ -89,17 +89,19 @@ module SolidusWeightedShipping
       weight = Decimal.coerce(weight, name: "chargeable weight", error_class: InputError)
       raise InputError, "chargeable weight must not be negative" if weight.negative?
 
-      full_parcels, remainder = weight.divmod(max_weight)
-      full_parcel_count = full_parcels.to_i
-      amount = maximum_price * full_parcel_count
-      amount += price_for(remainder) if remainder.positive?
+      Decimal.with_full_precision do
+        full_parcels, remainder = weight.divmod(max_weight)
+        full_parcel_count = full_parcels.to_i
+        amount = maximum_price * full_parcel_count
+        amount += price_for(remainder) if remainder.positive?
 
-      Rate.new(
-        amount:,
-        chargeable_weight_in_store_units: weight,
-        full_parcel_count:,
-        remainder_weight_in_store_units: remainder
-      )
+        Rate.new(
+          amount:,
+          chargeable_weight_in_store_units: weight,
+          full_parcel_count:,
+          remainder_weight_in_store_units: remainder
+        )
+      end
     end
 
     def price_for(weight)

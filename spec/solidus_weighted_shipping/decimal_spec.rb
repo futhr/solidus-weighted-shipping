@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
 RSpec.describe SolidusWeightedShipping::Decimal do
+  it "restores the host precision setting even when calculation raises" do
+    BigDecimal.save_limit do
+      BigDecimal.limit(3)
+      expect { described_class.with_full_precision { raise "failed" } }.to raise_error("failed")
+      expect(BigDecimal.limit).to eq(3)
+    end
+  end
+
   describe ".coerce" do
     it "accepts exact decimal representations" do
       value = BigDecimal("1.25")

@@ -6,6 +6,15 @@ module SolidusWeightedShipping
   module Decimal
     module_function
 
+    def with_full_precision
+      return yield if BigDecimal.limit.zero?
+
+      BigDecimal.save_limit do
+        BigDecimal.limit(0)
+        yield
+      end
+    end
+
     def coerce(value, name: "value", error_class: ConfigurationError)
       raise error_class, "#{name} must use an exact decimal value" if value.is_a?(Float)
 

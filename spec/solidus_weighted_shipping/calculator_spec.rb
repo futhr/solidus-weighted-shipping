@@ -24,6 +24,21 @@ RSpec.describe SolidusWeightedShipping::Calculator do
     expect(quote.amount).to eq(decimal("15"))
   end
 
+  it "preserves exact totals and prices when the host sets a decimal precision limit" do
+    calculator = weighted_calculator(rate_table: "0.3: 12.34", handling_fee: "1.23")
+    package = weighted_package(quantity: 2, weight: "0.35", unit_price: "12.34")
+
+    BigDecimal.save_limit do
+      BigDecimal.limit(2)
+
+      expect(package.merchandise_total).to eq(decimal("24.68"))
+      quote = calculator.quote(package)
+      expect(quote.chargeable_weight_in_store_units).to eq(decimal("0.7"))
+      expect(quote.amount).to eq(decimal("38.25"))
+      expect(BigDecimal.limit).to eq(2)
+    end
+  end
+
   it "keeps the historical strict free-shipping boundary at order scope" do
     boundary = weighted_package(weight: "1", unit_price: "120", order_total: "120")
     above = weighted_package(weight: "1", unit_price: "10", order_total: "120.0001")

@@ -67,7 +67,7 @@ module SolidusWeightedShipping
       handling_fee = handling_for(package)
 
       Quote.rated(
-        amount: rate.amount + handling_fee,
+        amount: Decimal.with_full_precision { rate.amount + handling_fee },
         currency: package.currency,
         chargeable_weight_in_store_units: chargeable_weight,
         parcel_count: rate.parcel_count,
