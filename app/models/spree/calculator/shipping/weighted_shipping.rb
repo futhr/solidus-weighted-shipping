@@ -170,11 +170,17 @@ module Spree
         order_total = package.order&.item_total || items.sum(BigDecimal("0")) do |item|
           item.unit_price_in_currency_units * item.quantity
         end
+        # An empty Solidus package has no order and its #currency method raises.
+        currency = if items.empty?
+          package.shipment&.order&.currency || Spree::Config.currency
+        else
+          package.currency
+        end
 
         SolidusWeightedShipping::PackageInput.new(
           items: items,
           order_merchandise_total: order_total,
-          currency: package.currency
+          currency:
         )
       end
 

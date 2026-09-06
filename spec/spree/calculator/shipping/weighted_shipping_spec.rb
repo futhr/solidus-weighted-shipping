@@ -203,6 +203,20 @@ RSpec.describe Spree::Calculator::Shipping::WeightedShipping do
     expect(calculator.compute_package(package)).to eq(BigDecimal("2"))
   end
 
+  it "returns an empty quote for a real empty Solidus package" do
+    empty_package = Spree::Stock::Package.new(nil)
+
+    expect(calculator.quote_package(empty_package).status).to eq(:empty)
+    expect(calculator.compute_package(empty_package)).to eq(BigDecimal("0"))
+  end
+
+  it "uses the shipment order currency for an empty package when available" do
+    empty_package = Spree::Stock::Package.new(nil)
+    empty_package.shipment = Spree::Shipment.new(order: Spree::Order.new(currency: "EUR"))
+
+    expect(calculator.quote_package(empty_package).currency).to eq("EUR")
+  end
+
   it "registers only the canonical calculator for new shipping methods" do
     calculator_names = Rails.application.config.spree.calculators.shipping_methods.map(&:to_s)
 
