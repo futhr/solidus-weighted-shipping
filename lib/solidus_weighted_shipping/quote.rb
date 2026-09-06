@@ -133,7 +133,8 @@ module SolidusWeightedShipping
     def validate_state!
       if status == :unavailable
         raise InputError, "unavailable quote must include a reason" if reason.nil?
-        unless reason.is_a?(Symbol) || (reason.is_a?(String) && !reason.strip.empty?)
+        valid_reason = reason.is_a?(Symbol) || (reason.is_a?(String) && !reason.strip.empty?)
+        unless valid_reason
           raise InputError, "unavailable reason must be a symbol or nonempty string"
         end
         raise InputError, "unavailable quote must not include an amount" unless amount.nil?

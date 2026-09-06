@@ -4,8 +4,12 @@ require "spec_helper"
 
 ENV["RAILS_ENV"] = "test"
 
-dummy_environment = File.expand_path("dummy/config/environment.rb", __dir__)
-system("bin/rake extension:test_app") unless File.exist?(dummy_environment)
+project_root = File.expand_path("..", __dir__)
+dummy_root = File.expand_path(ENV.fetch("DUMMY_PATH", "spec/dummy"), project_root)
+dummy_environment = File.join(dummy_root, "config/environment.rb")
+unless File.exist?(dummy_environment)
+  system(File.join(project_root, "bin/rake"), "extension:test_app") || abort("Test application creation failed")
+end
 require dummy_environment
 
 ActiveRecord::Migration.maintain_test_schema!
