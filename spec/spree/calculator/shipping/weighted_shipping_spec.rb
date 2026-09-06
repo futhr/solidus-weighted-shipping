@@ -166,6 +166,34 @@ RSpec.describe Spree::Calculator::Shipping::WeightedShipping do
     expect(calculator.compute_package(package)).to eq(BigDecimal("2"))
   end
 
+  it "rejects malformed decimal preferences without losing the submitted value" do
+    ["", "nope", "12oops", "NaN", "Infinity", 0.1, Rational(1, 3)].each do |value|
+      calculator.preferred_free_shipping_threshold = value
+
+      expect(calculator).not_to be_valid
+      expect(calculator.available?(package)).to be(false)
+      expect(calculator.compute_package(package)).to be_nil
+    end
+
+    calculator.preferred_free_shipping_threshold = "120"
+    expect(calculator).to be_valid
+    expect(calculator.compute_package(package)).to eq(BigDecimal("15"))
+  end
+
+  it "validates handling fees assigned through the Solidus preference API" do
+    calculator.set_preference(:handling_fee, "not a price")
+
+    expect(calculator).not_to be_valid
+    expect(calculator.preferred_handling_fee).to eq("not a price")
+  end
+
+  it "keeps terminating rational preferences exact" do
+    calculator.preferred_handling_fee = Rational(1, 8)
+
+    expect(calculator).to be_valid
+    expect(calculator.preferred_handling_fee).to eq(BigDecimal("0.125"))
+  end
+
   it "registers only the canonical calculator for new shipping methods" do
     calculator_names = Rails.application.config.spree.calculators.shipping_methods.map(&:to_s)
 

@@ -114,6 +114,16 @@ module Spree
 
       private
 
+      # Solidus uses String#to_d, which turns malformed input into zero. Keep
+      # invalid values intact so model validation can report them in the admin.
+      def convert_preference_value(value, type, preference_encryptor = nil)
+        return super unless type == :decimal
+
+        SolidusWeightedShipping::Decimal.coerce(value)
+      rescue SolidusWeightedShipping::ConfigurationError
+        value
+      end
+
       def policy
         values = policy_values
         signature = policy_signature(values)
