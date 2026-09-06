@@ -217,7 +217,7 @@ module Spree
 
       def policy_signature(values)
         values.sort_by { |key, _value| key.to_s }.map do |key, value|
-          [key, value.class.name, value.to_s].freeze
+          [key, value.class.name, value.to_s.dup.freeze].freeze
         end.freeze
       end
 

@@ -194,6 +194,15 @@ RSpec.describe Spree::Calculator::Shipping::WeightedShipping do
     expect(calculator.preferred_handling_fee).to eq(BigDecimal("0.125"))
   end
 
+  it "invalidates the cached policy after an in-place rate table edit" do
+    calculator.preferred_rate_table = +"10: 15\n20: 18"
+    expect(calculator.compute_package(package)).to eq(BigDecimal("15"))
+
+    calculator.preferred_rate_table.replace("10: 2\n20: 4")
+
+    expect(calculator.compute_package(package)).to eq(BigDecimal("2"))
+  end
+
   it "registers only the canonical calculator for new shipping methods" do
     calculator_names = Rails.application.config.spree.calculators.shipping_methods.map(&:to_s)
 
