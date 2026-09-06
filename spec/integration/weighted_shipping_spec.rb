@@ -111,7 +111,8 @@ RSpec.describe "Solidus weighted shipping integration" do
   end
 
   it "treats amounts as decimal values in the order currency without minor-unit conversion" do
-    %w[JPY KWD].each do |currency|
+    {"JPY" => "420", "KWD" => "12.345"}.each do |currency, amount|
+      calculator.preferred_rate_table = "10: #{amount}"
       order = create(:order, currency:)
       line_item = create_line_item(order:, price: "100", weight: "10")
       recalculate(order)
@@ -119,7 +120,8 @@ RSpec.describe "Solidus weighted shipping integration" do
 
       quote = calculator.quote_package(package)
       expect(quote.currency).to eq(currency)
-      expect(quote.amount).to eq(decimal("15"))
+      expect(quote.amount).to eq(decimal(amount))
+      expect(calculator.compute_package(package)).to eq(decimal(amount))
     end
   end
 
