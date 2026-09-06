@@ -74,7 +74,7 @@ module SolidusWeightedShipping
       @currency = currency.to_s.strip.upcase.freeze
       raise InputError, "currency must be a three-letter code" unless CURRENCY_PATTERN.match?(@currency)
 
-      @reason = reason
+      @reason = reason.is_a?(String) ? reason.dup.freeze : reason
       @chargeable_weight_in_store_units = Decimal.coerce(
         chargeable_weight_in_store_units,
         name: "chargeable weight",
@@ -133,7 +133,13 @@ module SolidusWeightedShipping
     def validate_state!
       if status == :unavailable
         raise InputError, "unavailable quote must include a reason" if reason.nil?
+        unless reason.is_a?(Symbol) || (reason.is_a?(String) && !reason.strip.empty?)
+          raise InputError, "unavailable reason must be a symbol or nonempty string"
+        end
         raise InputError, "unavailable quote must not include an amount" unless amount.nil?
+        unless chargeable_weight_in_store_units.zero? && handling_fee.zero? && parcel_count.zero?
+          raise InputError, "unavailable quote must have zero weight, handling fee, and parcel count"
+        end
         return
       end
 
@@ -141,9 +147,14 @@ module SolidusWeightedShipping
 
       if status == :rated
         raise InputError, "rated quote must include at least one parcel" unless parcel_count.positive?
+        raise InputError, "rated quote must have positive weight" unless chargeable_weight_in_store_units.positive?
+        raise InputError, "handling fee must not exceed the quote amount" if handling_fee > amount
         return
       end
 
+      if status == :empty && !chargeable_weight_in_store_units.zero?
+        raise InputError, "empty quote must have zero weight"
+      end
       unless amount.zero? && handling_fee.zero? && parcel_count.zero?
         raise InputError, "#{status} quote must have zero amount, handling fee, and parcel count"
       end

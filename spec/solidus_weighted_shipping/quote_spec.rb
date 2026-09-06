@@ -1,6 +1,37 @@
 # frozen_string_literal: true
 
 RSpec.describe SolidusWeightedShipping::Quote do
+  it "copies a mutable reason so hash membership remains stable" do
+    reason = +"oversized"
+    quote = described_class.unavailable(currency: "USD", reason:)
+    indexed = {quote => :found}
+    reason.replace("changed")
+
+    expect(quote.reason).to eq("oversized")
+    expect(quote.reason).to be_frozen
+    expect(indexed[quote]).to eq(:found)
+  end
+
+  it "rejects impossible weights, fees, and unavailable quote fields" do
+    rated = {status: :rated, amount: "10", currency: "USD", chargeable_weight_in_store_units: "1", parcel_count: 1, handling_fee: "0"}
+    unavailable = rated.merge(status: :unavailable, amount: nil, reason: :oversized, chargeable_weight_in_store_units: "0", parcel_count: 0)
+
+    invalid = [
+      rated.merge(chargeable_weight_in_store_units: "0"),
+      rated.merge(handling_fee: "11"),
+      unavailable.merge(parcel_count: 1),
+      unavailable.merge(handling_fee: "1"),
+      unavailable.merge(chargeable_weight_in_store_units: "1"),
+      unavailable.merge(reason: []),
+      unavailable.merge(reason: " "),
+      rated.merge(status: :empty, amount: "0", parcel_count: 0)
+    ]
+
+    invalid.each do |attributes|
+      expect { described_class.new(**attributes) }.to raise_error(SolidusWeightedShipping::InputError)
+    end
+  end
+
   it "builds immutable rated, free, unavailable, and empty results" do
     rated = described_class.rated(
       amount: "12.50",

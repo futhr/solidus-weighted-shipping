@@ -30,6 +30,8 @@ RSpec.describe SolidusWeightedShipping::PackageInput do
         .to raise_error(SolidusWeightedShipping::InputError, /at most three/)
       expect { weighted_item(dimensions: ["-1"]) }
         .to raise_error(SolidusWeightedShipping::InputError, /must not be negative/)
+      expect { weighted_item(dimensions: [false]) }
+        .to raise_error(SolidusWeightedShipping::InputError, /must be numeric/)
     end
   end
 

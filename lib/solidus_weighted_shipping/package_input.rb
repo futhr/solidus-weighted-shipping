@@ -51,7 +51,7 @@ module SolidusWeightedShipping
         raise InputError, "item dimensions must contain at most three values" if dimensions.length > 3
 
         dimensions.map do |value|
-          dimension = Decimal.coerce(value || 0, name: "item dimension", error_class: InputError)
+          dimension = Decimal.coerce(value.nil? ? 0 : value, name: "item dimension", error_class: InputError)
           raise InputError, "item dimensions must not be negative" if dimension.negative?
 
           dimension
@@ -97,7 +97,7 @@ module SolidusWeightedShipping
       items.sum(BigDecimal("0")) do |item|
         weight = item.weight_in_store_units
         effective_weight = weight&.positive? ? weight : fallback
-        effective_weight * Integer(item.quantity)
+        effective_weight * item.quantity
       end
     end
 
