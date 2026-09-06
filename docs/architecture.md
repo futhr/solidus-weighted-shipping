@@ -1,85 +1,55 @@
 # Architecture
 
-Solidus Weighted Shipping owns one missing commerce policy: deterministic,
-merchant-configured shipping tariffs based on package weight and item
-eligibility. Solidus continues to own shipping methods, zones, stock packages,
-estimation, selected rates, shipments, and order state.
+The Rails engine registers
+`Spree::Calculator::Shipping::WeightedShipping` with Solidus. The adapter reads
+preferences and package contents, delegates calculation to plain Ruby objects,
+and returns a decimal amount to `Spree::Stock::Estimator`.
 
-## Runtime flow
+## Responsibilities
 
-```text
-Spree::Stock::Estimator
-  -> Spree::Calculator::Shipping::WeightedShipping
-     -> PackageInput (normalized package and order values)
-        -> Constraints (item eligibility)
-        -> RateTable (validated bands and overflow parcels)
-        -> Calculator (free-shipping and handling policy)
-           -> Quote (rated, free, unavailable, or empty)
-```
+| Component | Responsibility |
+| --- | --- |
+| `Decimal` | Validates exact numeric inputs and isolates arithmetic from host precision limits. |
+| `PackageInput` | Copies quantities, prices, weights, dimensions, order total, and currency. |
+| `Constraints` | Checks each item's effective weight and two longest dimensions. |
+| `RateTable` | Validates bands, finds an inclusive threshold, and prices overflow weight. |
+| `Calculator` | Applies eligibility, free shipping, rates, and handling in order. |
+| `Quote` | Validates and exposes an immutable result. |
+| `LegacyPreferences` | Converts old preference keys without loading Rails. |
 
-The class under `Spree::Calculator` is the required Solidus adapter. All policy
-objects live under `SolidusWeightedShipping` and run without Rails when loaded
-through `solidus_weighted_shipping/domain`.
+Load `solidus_weighted_shipping/domain` to use these classes without Rails.
+The full entrypoint, `solidus_weighted_shipping`, also loads the engine.
 
-## Scope of each value
+## Solidus integration
 
-| Value or rule | Scope | Reason |
-| --- | --- | --- |
-| item weight and dimensions | quoted package | current Solidus rates packages independently |
-| chargeable total weight | quoted package | unrelated order items must not affect eligibility/rate |
-| handling threshold and fee | quoted package | preserves calculator-per-package behavior explicitly |
-| free-shipping threshold | whole order merchandise total | preserves the historical merchant policy |
-| currency | order/package currency | calculator amounts are decimal currency units |
+Package values come from `Spree::Stock::Package#contents`. Only free shipping
+uses the whole order's `item_total`. The adapter follows the
+`Spree::ShippingCalculator#compute_package` contract and leaves shipment and
+order updates to Solidus.
 
-Free shipping remains strictly `order total > threshold`. Handling remains
-inclusive at `package total <= threshold`.
+Parsed policies are cached on the calculator instance. The key copies each
+effective preference's type and text, including mutable strings. Editing a
+preference, replacing the preference hash, or reloading changed data causes
+the next quote to use a new policy. Package values are read for every quote.
 
-## Domain objects
+Decimal preference conversion is stricter than Solidus's default `String#to_d`:
+bad input is retained for validation instead of silently becoming zero.
+Validation also normalizes whitespace in valid rate tables.
 
-`RateTable` parses a maximum of 1,000 `maximum weight: price` bands, requires
-strictly increasing positive thresholds and non-negative prices, and freezes
-the canonical bands. Totals above the last band are decomposed into repeated
-maximum-weight parcels plus one remainder.
+Band lookup takes O(log(bands)) comparisons. Package checks and totals are
+linear in item count. Overflow uses division, so computation does not loop
+once per logical parcel. A cached policy avoids reparsing but still compares
+preference text; that comparison can be linear in the table's text size.
 
-`Constraints` validates positive item/dimension limits and fallback weight.
-For every item it sorts the three dimensions, largest first, so orientation
-cannot change eligibility. Missing dimensions are zero. A missing, zero, or
-negative historical item weight uses the configured positive fallback.
+## Migration
 
-`PackageInput` copies and freezes explicit item values. Names include
-`_in_currency_units` and `_in_store_units` to prevent hidden unit assumptions.
-It rejects negative prices/dimensions, malformed quantities, and invalid
-currency codes.
+The task recognizes the old STI class name as stored data. It reads and locks
+matching rows without loading the missing class. Write mode changes the type
+and preferences in a transaction per calculator; failed rows roll back while
+other valid rows can succeed. Dry mode validates an in-memory calculator and
+issues no data writes. See the [migration guide](migration.md).
 
-`Calculator` returns an immutable `Quote`; it does not mutate its input. A
-quote has exactly one state: rated, free, unavailable, or empty. Invalid
-configuration raises `ConfigurationError`; invalid runtime input raises
-`InputError`.
-
-## Solidus adapter
-
-The adapter converts only `Spree::Stock::Package#contents`, using the package's
-order only for the explicitly order-scoped free-shipping total. `available?`
-returns false and `compute_package` returns nil for invalid configuration or
-input, allowing Solidus to omit the method safely. Model validation reports the
-underlying configuration message to an administrator.
-
-Parsed policy is memoized by an immutable signature of effective preferences.
-Canonical preference writers invalidate legacy keys, and any changed
-preference produces a new signature; rating never persists that cache.
-
-## Migration boundary
-
-Only `WeightedShipping` is defined and registered. The migration task recognizes
-the historical calculator name as a stored STI string, locks the row without
-instantiating that class, assigns the canonical type inside a transaction, and
-then validates and converts old preference keys. No legacy runtime constant or
-require path is shipped.
-
-## Negative architecture
-
-This extension intentionally has no carrier API, account catalogue, label,
-tracking, pickup-point, WMS, fulfillment workflow, generic rules engine,
-generic parcelization framework, storefront, or replacement shipment model.
-Logical parcel chunks used to calculate price never create persisted Solidus
-shipments. Rating performs no network request or database write.
+The extension adds no tables, routes, or production controllers. The controller
+under `spec/support` is a browser-test fixture and is excluded from the gem.
+No runtime path makes network requests or writes shipping estimates to the
+database. Weight-based pricing blocks do not model physical box packing.

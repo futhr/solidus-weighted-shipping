@@ -1,288 +1,120 @@
-# Code and behavior guide
+# Configuration and shipping rules
 
-This is the technical map for Solidus Weighted Shipping. It explains what runs
-at checkout, where each rule lives, how old data is migrated, and what must pass
-before the gem can be released.
+Weighted Shipping prices a `Spree::Stock::Package` using the calculator's saved
+preferences. Solidus handles shipping zones, methods, stock locations, taxes,
+and selection of the resulting rates.
 
-## System boundary
-
-The gem owns one policy: turning a Solidus stock package and merchant settings
-into a deterministic shipping quote. Solidus still owns zones, shipping
-methods, stock locations, packages, selected rates, shipments, and order state.
-
-```mermaid
-flowchart LR
-  Admin["Solidus admin preferences"] --> Adapter["WeightedShipping adapter"]
-  Estimator["Spree::Stock::Estimator"] --> Adapter
-  Package["Spree::Stock::Package"] --> Adapter
-  Adapter --> Input["PackageInput"]
-  Adapter --> Policy["Calculator"]
-  Input --> Policy
-  Policy --> Constraints["Constraints"]
-  Policy --> Rates["RateTable"]
-  Policy --> Quote["Quote"]
-  Quote --> Estimator
-  Migration["One-time migration task"] --> Admin
-```
-
-There are no carrier requests, credentials, labels, tracking records, pickup
-points, unit conversions, or shipment mutations. Parcel chunks exist only long
-enough to calculate a price; they are not persisted as Solidus shipments.
-
-## Code map
-
-```mermaid
-flowchart TD
-  Root["lib/solidus_weighted_shipping.rb<br/>public gem entrypoint"]
-  Engine["engine.rb<br/>Rails engine and calculator registration"]
-  Domain["domain.rb<br/>framework-light policy entrypoint"]
-  Adapter["app/models/.../weighted_shipping.rb<br/>Solidus adapter and preferences"]
-  Input["package_input.rb<br/>immutable package values"]
-  Decimal["decimal.rb<br/>exact number coercion"]
-  Constraints["constraints.rb<br/>item eligibility"]
-  Rates["rate_table.rb<br/>bands and parcel pricing"]
-  Calculator["calculator.rb<br/>rule orchestration"]
-  Quote["quote.rb<br/>immutable result states"]
-  Legacy["legacy_preferences.rb<br/>old-to-new preference mapping"]
-  Task["lib/tasks/...rake<br/>transactional data migration"]
-
-  Root --> Engine
-  Root --> Domain
-  Engine --> Adapter
-  Engine --> Task
-  Domain --> Decimal
-  Domain --> Input
-  Domain --> Constraints
-  Domain --> Rates
-  Domain --> Calculator
-  Domain --> Quote
-  Domain --> Legacy
-  Adapter --> Domain
-  Task --> Adapter
-  Task --> Legacy
-```
-
-| Path | Responsibility |
-| --- | --- |
-| `lib/solidus_weighted_shipping.rb` | Loads the version, policy objects, and Rails engine for normal gem use. |
-| `lib/solidus_weighted_shipping/domain.rb` | Loads the rating domain without booting Rails; useful for isolated tests and tooling. |
-| `lib/solidus_weighted_shipping/engine.rb` | Registers the calculator after Solidus initializes its calculator list and loads the migration task. |
-| `app/models/spree/calculator/shipping/weighted_shipping.rb` | Translates Solidus packages and preferences into domain values, validates settings, caches immutable policies, and returns amounts to Solidus. |
-| `lib/solidus_weighted_shipping/decimal.rb` | Accepts finite exact decimals and rejects binary floats or non-terminating rationals. |
-| `lib/solidus_weighted_shipping/package_input.rb` | Copies package items, quantities, prices, weights, dimensions, order merchandise total, and currency into immutable values. |
-| `lib/solidus_weighted_shipping/constraints.rb` | Applies maximum item weight and orientation-independent dimension rules. |
-| `lib/solidus_weighted_shipping/rate_table.rb` | Parses and validates bands, selects a band, and decomposes weights above the final band. |
-| `lib/solidus_weighted_shipping/calculator.rb` | Applies empty-package, eligibility, free-shipping, rate, and handling rules in order. |
-| `lib/solidus_weighted_shipping/quote.rb` | Represents one valid `rated`, `free_shipping`, `unavailable`, or `empty` result. |
-| `lib/solidus_weighted_shipping/legacy_preferences.rb` | Converts historical preference keys into the canonical shape without knowing Active Record. |
-| `lib/tasks/solidus_weighted_shipping.rake` | Migrates stored calculator types and preferences with row locks and per-record transactions. |
-| `config/locales/*.yml` | Supplies calculator and preference labels for the supported admin locales. |
-| `spec/solidus_weighted_shipping` | Unit contract for every domain object and boundary. |
-| `spec/integration`, `spec/spree`, `spec/tasks` | Exercises the real Solidus adapter, estimator, persistence, and migration. |
-| `spec/properties` | Checks invariants across generated weights, dimensions, rates, and orientations. |
-| `spec/system` | Verifies the real admin and customer estimate flows and captures browser evidence. |
-| `spec/packaging` | Checks the gem identity, file set, metadata, and dependency boundary. |
-| `.github/workflows` | Runs compatibility, quality, mutation, browser, packaging, security, and trusted-release jobs. |
-
-## Runtime entrypoints
-
-Applications load the engine with:
-
-```ruby
-require "solidus_weighted_shipping"
-```
-
-Code that needs only the pure policy can load:
-
-```ruby
-require "solidus_weighted_shipping/domain"
-```
-
-The engine registers
-`Spree::Calculator::Shipping::WeightedShipping`. No historical require,
-namespace, or calculator constant is shipped. The old calculator name appears
-only as a literal persisted value understood by the migration task.
-
-## Configuration contract
+## Preferences
 
 | Preference | Default | Meaning |
 | --- | ---: | --- |
-| `rate_table` | `1: 6` through `20: 18` | One `maximum weight: price` band per line. |
-| `maximum_item_weight` | `18` | Highest allowed weight for one item. |
-| `maximum_item_width` | `60` | Highest allowed second-longest side. |
-| `maximum_item_length` | `120` | Highest allowed longest side. |
-| `free_shipping_threshold` | `120` | Order merchandise total above which shipping is free. |
-| `handling_threshold` | `50` | Package merchandise total at or below which handling applies. |
-| `handling_fee` | `10` | Fee added when the handling rule matches. |
-| `default_item_weight` | `1` | Weight used when an item has no positive weight. |
+| `rate_table` | See below | One `maximum weight: price` band per line. |
+| `maximum_item_weight` | `18` | Maximum weight of one item. |
+| `maximum_item_width` | `60` | Maximum second-longest side of one item. |
+| `maximum_item_length` | `120` | Maximum longest side of one item. |
+| `free_shipping_threshold` | `120` | Order merchandise total must exceed this to qualify. |
+| `handling_threshold` | `50` | Handling applies at or below this package merchandise total. |
+| `handling_fee` | `10` | Fee added once per package when handling applies. |
+| `default_item_weight` | `1` | Weight used for an item with missing, zero, or negative weight. |
 
-Rate thresholds must be positive and strictly increasing. Prices and fees must
-be non-negative. A table may contain at most 1,000 bands. The adapter validates
-the complete policy when the calculator is saved and fails closed during
-estimation if stored input is invalid.
+The default rate table is:
 
-Weights and dimensions remain in the host store's configured product units.
-Money values are decimal amounts in the package currency, not integer minor
-units. A single calculator does not hold different rate tables per currency.
+```text
+1: 6
+2: 9
+5: 12
+10: 15
+20: 18
+```
+
+Tables accept 1–1,000 bands. Thresholds must be positive and strictly
+increasing; prices, fees, and monetary thresholds must be non-negative.
+Item limits and the fallback weight must be positive. Blank lines and
+whitespace around values are ignored. Prices need not increase with weight;
+check discount bands carefully if heavier packages should never cost less.
+
+Use the same weight and dimension units as your product records. No unit
+conversion takes place. Monetary values are amounts in the order currency:
+`12.50` means 12.50 currency units. A calculator has one rate table and does not
+convert prices between currencies. Stores needing different currency tariffs
+must restrict separate shipping methods to the appropriate currencies.
 
 ## Rating logic
 
-```mermaid
-flowchart TD
-  Start["Solidus asks for a package quote"] --> Normalize["Copy package contents into PackageInput"]
-  Normalize --> Empty{"No items?"}
-  Empty -->|Yes| EmptyQuote["empty quote: amount 0"]
-  Empty -->|No| Eligible{"Every item is eligible?"}
-  Eligible -->|No| Unavailable["unavailable quote with reason"]
-  Eligible -->|Yes| Weight["Sum quantity × effective item weight"]
-  Weight --> Free{"Order merchandise total > free threshold?"}
-  Free -->|Yes| FreeQuote["free_shipping quote: amount 0"]
-  Free -->|No| Rate["RateTable prices the chargeable weight"]
-  Rate --> Handling{"Package merchandise total <= handling threshold?"}
-  Handling -->|Yes| AddFee["Add handling fee"]
-  Handling -->|No| NoFee["Handling fee is 0"]
-  AddFee --> Rated["rated quote"]
-  NoFee --> Rated
-```
+1. An empty package gets a zero quote.
+2. Each item's weight and dimensions are checked. If any item exceeds a limit,
+   the package is unavailable, even if the order qualifies for free shipping.
+3. Item weight is multiplied by quantity and summed for the package.
+4. Shipping is free if `order.item_total > free_shipping_threshold`.
+5. Otherwise, total weight selects a rate. Handling is added when
+   `package merchandise total <= handling_threshold`.
 
-The scopes and boundaries are intentional:
+An item exactly at a physical limit is allowed. The longest side is compared
+with `maximum_item_length` and the second-longest with `maximum_item_width`.
+Rotation does not change eligibility. Missing dimensions count as zero;
+negative or malformed dimensions are rejected.
 
-- Item limits, chargeable weight, rate bands, and handling use the package
-  currently being estimated.
-- Free shipping uses the whole order merchandise total.
-- Free shipping is strict: equality at the threshold is still charged.
-- Handling is inclusive: equality at the threshold includes the fee.
-- Missing, zero, or negative historical item weight uses the positive fallback.
-- Quantity multiplies both merchandise value and effective weight.
+Free shipping uses Solidus's order merchandise total, before order-level
+adjustments. Handling uses only the quoted package's item prices and quantities.
+Neither rule uses the final amount paid after promotions, shipping, and tax
+adjustments. Product prices can themselves include tax, depending on the store.
 
-For dimensions, `Constraints` sorts the three sides. The longest side is
-compared with `maximum_item_length`; the second-longest is compared with
-`maximum_item_width`. Rotating a product therefore cannot change eligibility.
-Missing dimensions are treated as zero, while negative dimensions are rejected.
+A zero free-shipping threshold means every eligible order with a positive
+merchandise total qualifies. At the default threshold, an order of exactly
+`120` pays shipping; `120.01` qualifies. A package worth exactly `50` includes
+the default handling fee.
 
-### Rate and parcel calculation
+### Weight bands and overflow
 
-A weight at or below the last configured threshold uses the first band whose
-maximum includes it. Band boundaries are inclusive.
+Each band includes its maximum. With the default table, weight `2` costs `9`,
+while `2.01` costs `12`, before handling or free shipping.
 
-For a larger weight, `RateTable` divides the total by its final maximum weight.
-Every full parcel is charged the final-band price; a positive remainder is
-charged once at its first matching band.
+Above the last band, each full block of maximum weight costs the last-band
+price. A remainder uses its first matching band. Weight `45`, for example,
+costs `18 + 18 + 12 = 48`, before handling.
 
-```mermaid
-flowchart LR
-  Total["chargeable weight"] --> Divide["divmod by final-band weight"]
-  Divide --> Full["full parcels × final-band price"]
-  Divide --> Remainder{"positive remainder?"}
-  Remainder -->|Yes| Band["first inclusive matching band"]
-  Remainder -->|No| Zero["no remainder charge"]
-  Full --> Sum["shipping amount"]
-  Band --> Sum
-  Zero --> Sum
-```
+These blocks are a pricing rule. They do not pack indivisible products into
+boxes or create shipments. `parcel_count` reports those pricing blocks, not
+the number of physical boxes needed to fulfill an order.
 
-All arithmetic uses `BigDecimal`. Integers, decimal strings, `BigDecimal`, and
-terminating `Rational` values are accepted. Floats, infinities, malformed
-numbers, and non-terminating rationals are rejected so configuration cannot
-silently acquire binary rounding error.
+### Numeric input
 
-## Quote contract
+Ruby callers may pass integers, decimal strings, `BigDecimal`, or terminating
+`Rational` values. Floats, non-terminating rationals, malformed numbers, and
+infinities are rejected. Arithmetic preserves full decimal precision even if
+the host sets `BigDecimal.limit`; the setting is restored afterward.
+The calculator does not round prices to a currency's minor unit.
 
-`Quote` is immutable and permits only these states:
+## Ruby API
 
-| Status | Amount | Parcels | Reason | Available to Solidus |
-| --- | ---: | ---: | --- | --- |
-| `rated` | non-negative | at least 1 | none | yes |
-| `free_shipping` | `0` | `0` | none | yes |
-| `empty` | `0` | `0` | none | yes |
-| `unavailable` | none | `0` | eligibility reason | no |
+Rails applications load `solidus_weighted_shipping`. For pricing tools that
+do not need Rails, load `solidus_weighted_shipping/domain`.
 
-Contradictory combinations raise `InputError`. The adapter maps an unavailable
-or invalid quote to the public Solidus calculator contract: `available?`
-returns `false` and `compute_package` returns `nil`.
+The Solidus calculator exposes `quote_package(package)` for inspecting results
+and `available?(package)` and `compute_package(package)` for estimation.
 
-## Adapter and cache behavior
+| Quote status | Amount | Available | Meaning |
+| --- | --- | --- | --- |
+| `rated` | Rate plus handling | yes | Eligible package with a priced weight. |
+| `free_shipping` | `0` | yes | Eligible order above the free threshold. |
+| `empty` | `0` | yes | No package contents. |
+| `unavailable` | `nil` | no | An item exceeded a limit; `reason` identifies it. |
 
-The adapter reads only `Spree::Stock::Package#contents` for package-scoped
-values. It reads `package.order.item_total` solely for the documented
-order-scoped free-shipping rule, falling back to the package merchandise total
-when no order is attached.
+Quotes and their values are immutable. Invalid configuration raises
+`ConfigurationError`; invalid package input raises `InputError`.
+`quote_package` exposes those errors for diagnosis. The Solidus estimation
+methods catch them and return `false` or `nil`, so the method is omitted.
+Calculator validation reports configuration errors in the admin.
 
-Parsed policy objects are memoized against a frozen signature containing every
-effective preference value, its class, and its string representation. Any
-preference change creates a new signature and policy. The cache lives only on
-the calculator instance and is never persisted. Rating does not write to the
-database or mutate the order, package, variants, or preferences.
+An empty Solidus package has no order of its own. Its zero quote uses the
+shipment order's currency when available, otherwise `Spree::Config.currency`.
 
-## Legacy data migration
+## Further reading
 
-The migration is a deployment operation, not a runtime bridge.
-
-```mermaid
-sequenceDiagram
-  actor Operator
-  participant Task as Migration task
-  participant DB as spree_calculators
-  participant Adapter as WeightedShipping
-  participant Policy as Domain policy
-
-  Operator->>Task: Run dry mode or write mode
-  Task->>DB: Select IDs by literal old or canonical STI type
-  loop Each calculator in its own transaction
-    Task->>DB: Lock row and read stored type
-    Task->>DB: Assign canonical type without constantizing old type
-    Task->>Adapter: Load canonical calculator
-    Adapter->>Policy: Convert keys and validate complete policy
-    alt valid change in write mode
-      Adapter->>DB: Save canonical preferences
-      Task->>DB: Commit type and preferences together
-    else dry run, invalid data, or save failure
-      Task->>DB: Roll back type and preferences together
-    end
-  end
-  Task-->>Operator: Report migrated, unchanged, and failed IDs
-```
-
-The task is deterministic and skips already-canonical records. A successful
-write removes the old keys and changes the STI type, so rollback to the old gem
-requires the database backup taken before migration. The full operator sequence
-and key mapping are in [migration.md](migration.md).
-
-## Verification and release path
-
-```mermaid
-flowchart LR
-  Change["Pull request or main push"] --> Matrix["Ruby, Rails, and Solidus matrix"]
-  Change --> Quality["coverage and style"]
-  Change --> Mutation["mutation checks"]
-  Change --> Browser["admin and estimate browser flows"]
-  Change --> Package["build and isolated gem load"]
-  Change --> Security["dependency and workflow review"]
-  Quality --> Codecov["OIDC coverage upload"]
-  Matrix --> Main["protected main"]
-  Quality --> Main
-  Mutation --> Main
-  Browser --> Main
-  Package --> Main
-  Security --> Main
-  Main --> Tag["immutable stable tag"]
-  Tag --> Release["protected release environment"]
-  Release --> OIDC["RubyGems Trusted Publishing"]
-  OIDC --> Gem["gem plus retained checksum"]
-```
-
-The suite combines examples, generated properties, mutation testing, real
-Solidus records and estimation, browser flows, packaging checks, and isolated
-loads of the built gem. Coverage is generated as LCOV, enforced
-locally, and uploaded to Codecov with GitHub OIDC; no long-lived Codecov token
-is stored.
-
-Use these guides for operational detail:
-
-- [Architecture decisions and non-goals](architecture.md)
-- [Migration runbook](migration.md)
-- [Testing matrix and evidence](testing.md)
-- [Security and reliability](security.md)
+- [Architecture](architecture.md)
+- [Migration from spree_postal_service](migration.md)
+- [Testing and compatibility](testing.md)
 - [Troubleshooting](troubleshooting.md)
-- [Release procedure](release.md)
-- [Final audit record](final-audit.md)
+- [Security](security.md)
+- [Release preparation](release.md)
+- [Audit findings and verification](final-audit.md)

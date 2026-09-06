@@ -3,11 +3,11 @@
 [![CI](https://github.com/futhr/solidus-weighted-shipping/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/futhr/solidus-weighted-shipping/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/github/futhr/solidus-weighted-shipping/branch/main/graph/badge.svg)](https://app.codecov.io/github/futhr/solidus-weighted-shipping)
 [![Release candidate](https://img.shields.io/badge/release-4.0.0.pre-orange.svg)](CHANGELOG.md#unreleased)
-[![Ruby](https://img.shields.io/badge/ruby-%3E%3D_3.2-CC342D.svg?logo=ruby&logoColor=white)](solidus_weighted_shipping.gemspec)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D_3.3-CC342D.svg?logo=ruby&logoColor=white)](solidus_weighted_shipping.gemspec)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE.md)
 
-Solidus Weighted Shipping is a focused shipping calculator for stores with
-merchant-defined weight bands. It prices each Solidus package locally, without
+Solidus Weighted Shipping calculates rates from weight bands you define.
+It prices each Solidus package locally, without
 carrier accounts or network calls.
 
 It supports:
@@ -21,14 +21,14 @@ It supports:
 
 ## Requirements
 
-Ruby 3.2 or newer and Solidus 4.6 or 4.7 are supported. See the
+Ruby 3.3 or newer and Solidus 4.6.2 or 4.7 are supported. See the
 [tested compatibility matrix](docs/testing.md#supported-matrix) for the exact
 Ruby and Rails combinations.
 
 ## Installation
 
-The new gem is currently versioned `4.0.0.pre` and has not been published to
-RubyGems. Until the first stable release, add the GitHub repository to your
+This checkout is versioned `4.0.0.pre`. To use it before the first stable
+release, add the GitHub repository to your
 `Gemfile`:
 
 ```ruby
@@ -66,9 +66,8 @@ documents every boundary and scope.
 
 ## Migrating from `spree_postal_service`
 
-This is a new gem and namespace, not a compatibility release of the historical
-extension. Preview the one-time database conversion before replacing the old
-runtime:
+The gem and calculator have new names. Stop application processes, replace the
+old dependency, then preview the database conversion from the new bundle:
 
 ```sh
 DRY_RUN=1 bin/rake solidus_weighted_shipping:preferences:migrate
@@ -88,7 +87,7 @@ bin/rake quality:lint
 bin/rake quality:mutation
 ```
 
-Start with the [code and behavior guide](docs/README.md). Changes are welcome
+Start with the [configuration guide](docs/README.md). Changes are welcome
 through [CONTRIBUTING.md](CONTRIBUTING.md); security reports belong in
 [SECURITY.md](SECURITY.md).
 

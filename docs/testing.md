@@ -1,101 +1,99 @@
 # Testing
 
-The suite treats tests as the executable contract for the rewrite. A clean
-checkout needs Ruby, Bundler, a browser supported by Selenium, and SQLite; the
-repository supplies the disposable Solidus application.
+Use Ruby 3.3 or newer, Bundler, SQLite, and Chrome/Chromium. The test application
+is generated under `spec/dummy` and ignored by Git.
 
-## One-shot verification
+## Run the checks
 
 ```sh
 bin/setup
 bin/sandbox
-bin/rake
-bin/rails runner 'puts SolidusWeightedShipping::VERSION'
 bin/rake quality:coverage
 bin/rake quality:lint
 bin/rake quality:mutation
-ruby -S bundle exec bundle-audit check --update
+bundle exec bundle-audit check --update
+actionlint .github/workflows/*.yml
 ```
 
-`bin/sandbox` removes and rebuilds `spec/dummy`; it does not create a committed
-sandbox. `bin/rake` runs the complete RSpec suite.
+`bin/sandbox` deletes and rebuilds the generated application. Use it after
+changing Rails or Solidus versions. `bin/rake` runs the full suite without
+coverage reporting. For a focused change, run a spec directly:
 
-## Test layers
+```sh
+bundle exec rspec spec/solidus_weighted_shipping/rate_table_spec.rb
+```
 
-- Pure unit specs cover decimal coercion, structured/legacy table parsing,
-  every band boundary, overflow parcels, constraints, immutable inputs/results,
-  free shipping, handling, empty packages, and invalid states.
-- Rantly properties cover non-negative quotes, orientation invariance,
-  monotonic tables, and conservation across parcel decomposition.
-- Mutant targets the exact pricing, free-shipping, handling, and eligibility
-  decisions. Every generated mutant must be killed.
-- Solidus integration specs use real records and `Spree::Stock::Estimator` to
-  prove registration, preference persistence, package scoping, multiple
-  packages, JPY/KWD decimal behavior, and zero SQL writes while rating.
-- System specs use the real Solidus admin and an isolated, test-only customer
-  preview. The disposable app is generated with `FRONTEND=none`, so the preview
-  provides a stable customer-facing view without pretending to be a packaged
-  storefront. Its controller lives under `spec/`, is excluded from the gem,
-  and still rates through the real estimator.
-- Packaging specs inspect the built file set, metadata, and runtime dependency
-  graph.
+## What the suite covers
 
-## Coverage gates
+- Unit specs cover parsing, exact decimals, weight boundaries, overflow rates,
+  item constraints, handling, free shipping, and immutable quote values.
+- Rantly properties generate weights, dimensions, quantities, and rate tables
+  to check conservation, orientation, and monotonicity where applicable.
+- Solidus specs use persisted records and the stock estimator to check package
+  scope, preference changes, currency amounts, migration, and absence of writes
+  during estimation and migration dry runs.
+- Browser specs exercise the real admin and a test-only estimate page.
+  The generated app has no storefront; the estimate page calls the real
+  estimator but is not a checkout implementation.
+- Packaging specs build a gem from an archive without `.git`, inspect its file
+  list, and load the extracted domain outside the checkout.
 
-With `COVERAGE=true`, SimpleCov requires at least 95% line coverage, 85% branch
-coverage, and 70% per source file. Generated dummy files are excluded. The
-quality job always retains its LCOV output as a workflow artifact. After the
-Codecov GitHub app is granted access to the repository and the repository is
-set up in Codecov, set the GitHub Actions repository variable
-`CODECOV_ENABLED=true` to enable strict OIDC uploads; no long-lived upload token
-is stored. Codecov then requires 95% project and patch coverage in addition to
-the local gates. Coverage is diagnostic: boundary and mutation evidence remain
-the correctness gate.
+CI rejects focused examples and empty suites. RSpec prints its random seed;
+use `--seed <number>` to reproduce a failure.
+
+## Coverage and mutation checks
+
+`COVERAGE=true` enables SimpleCov with minimums of 95% line coverage, 85% branch
+coverage, and 70% per source file. Runtime Ruby and rake files are tracked even
+when not loaded. Other test runs leave coverage reports alone.
+
+Mutant checks `RateTable#price_for`, `Calculator#quote`,
+`Calculator#handling_for`, and `Constraints#eligibility_for`. The selected
+mutations must all be killed. This is targeted evidence, not mutation coverage
+of the entire library. CI uses Ruby 3.3 to match the parser grammar.
+The command also passes on Ruby 4.0 with a parser compatibility warning.
+
+The quality job saves HTML and LCOV coverage. Codecov uploads are optional:
+configure the repository in Codecov, add the `CODECOV_TOKEN` repository secret,
+and set the repository variable `CODECOV_ENABLED=true`. Uploads are skipped for
+fork pull requests and release tags. RubyGems publication uses OIDC separately.
 
 ## Supported matrix
 
-CI verifies Ruby 3.2/Rails 7.0/Solidus 4.6, Ruby 3.4/Rails 7.2 on Solidus 4.6
-and 4.7, and Ruby 4.0/Rails 8.1/Solidus 4.7. A Solidus `main` job is
-informational and may fail without blocking a release.
+| Ruby | Rails | Solidus |
+| --- | --- | --- |
+| 3.3 | 7.2 | 4.6 |
+| 3.4 | 7.2 | 4.6 |
+| 3.4 | 7.2 | 4.7 |
+| 3.4 | 8.0 | 4.7 |
+| 4.0 | 8.1 | 4.7 |
 
-Mutation analysis runs on Ruby 3.3, the newest Ruby grammar supported by its
-parser. The compatibility matrix independently exercises the maintained Ruby
-3.2, 3.4, and 4.0 runtimes.
+Each row resolves published gems within the requested minor versions and runs
+the suite without browser specs, followed by a dependency audit. The quality
+job runs the full suite on Ruby 4.0/Rails 8.1/Solidus 4.7. Solidus `main` is
+tested separately as an informational job. The release workflow reuses CI.
 
-The tag-only release workflow is intentionally separate. It accepts only a
-stable tag matching the gem version on a commit contained in `main`, reruns
-coverage, style, mutation, and dependency-audit gates, then uses RubyGems
-Trusted Publishing from the protected `release` environment.
+Ruby 3.2 and Rails 7.0 are no longer supported by this extension.
+See [Ruby maintenance branches](https://www.ruby-lang.org/en/downloads/branches/)
+and the [Rails maintenance policy](https://guides.rubyonrails.org/maintenance_policy.html).
 
-Set `RAILS_VERSION` and `SOLIDUS_BRANCH` before resolving the bundle. The
-Gemfile pins the requested Rails minor so a `7.0` job cannot silently resolve
-to Rails 7.2.
+Use a separate checkout for each dependency resolution. For example:
 
-When reproducing a row locally, apply both variables to dependency resolution,
-the dummy-app rebuild, and the spec command. The
-[contributing guide](../CONTRIBUTING.md#reproduce-a-compatibility-row) includes
-a complete example.
-
-## Browser evidence
-
-The system suite writes these artifacts after semantic assertions pass:
-
-```text
-01-admin-calculator-config.png
-02-checkout-normal-rate.png
-03-checkout-threshold-rate.png
-04-checkout-oversized-unavailable.png
-05-checkout-free-shipping.png
-06-checkout-multi-package.png
-07-admin-completed-order-rate.png
-08-admin-invalid-config.png
+```sh
+export SOLIDUS_VERSION=4.6 RAILS_VERSION=7.2
+bundle install
+bin/sandbox
+bin/rake extension:specs SPEC_OPTS="--exclude-pattern spec/system/**/*_spec.rb"
 ```
 
-CI retains the screenshots for 14 days. They contain generated factory data
-only and must be visually inspected before a release.
+`SOLIDUS_VERSION` selects published releases. Set `SOLIDUS_BRANCH=main` only
+when testing upstream development code. The default is Solidus 4.7 with Rails
+8.1. Lockfiles are local and ignored; update them when switching rows.
 
-## Reproducibility
+## Browser artifacts
 
-RSpec prints its random seed. Re-run a failure with `--seed <number>`. Tests do
-not depend on provider uptime, external credentials, wall-clock sleeps, or a
-committed database. Changing Rails/Solidus lines requires a clean dummy rebuild.
+The suite writes eight images under `tmp/screenshots`: admin configuration,
+normal and threshold rates, an oversized package, free shipping, two packages,
+a completed order, and invalid configuration. All data comes from test
+factories. CI retains images for 14 days. Inspect them when changing admin
+behavior and before release; assertions check behavior, not page layout.

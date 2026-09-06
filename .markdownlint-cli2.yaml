@@ -1,2 +1,6 @@
+globs:
+  - "*.md"
+  - "docs/**/*.md"
+
 ignores:
   - LICENSE.md

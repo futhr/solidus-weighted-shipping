@@ -1,14 +1,8 @@
 # Migrating to Solidus Weighted Shipping
 
-The repository, gem, namespace, and primary calculator are now aligned around
-Solidus Weighted Shipping. Historical branches and tags remain unchanged.
-
 This guide is for stores upgrading from `spree_postal_service`. New
 installations can start with the canonical dependency and calculator names and
 do not need to run the preference migration.
-
-The repository is now `futhr/solidus-weighted-shipping`. Preserve the GitHub
-redirect from the historical repository path.
 
 ## Dependency and calculator names
 
@@ -77,17 +71,18 @@ any data migration.
 3. Replace the old dependency with `solidus_weighted_shipping`, then boot only
    the release process used to run the migration task.
 4. Run the dry-run task and correct every reported legacy configuration.
-5. Run the write task once. It is deterministic and skips already-canonical
-   calculators on subsequent runs.
+5. Run the write task. Subsequent runs validate all matching calculators and
+   leave already-canonical records unchanged.
 6. Start application processes and exercise shipping estimation for eligible,
    oversized, free-shipping, and
    multi-package orders in the target store.
 
-The task selects and locks legacy rows without instantiating their STI class,
-temporarily assigns the canonical type inside a transaction, validates the
-converted policy, and commits only a successful write. Dry runs and failures
-roll back the type and preferences together. This cutover is intentionally an
-explicit maintenance boundary rather than a permanent compatibility layer.
+The task selects and locks rows without instantiating the old STI class. Dry
+runs validate an in-memory calculator and issue no data writes. Write mode
+changes the type and preferences in one transaction per calculator. A failed
+row rolls back, but other valid rows can still be migrated. The task exits
+nonzero if any row fails; correct the reported IDs and rerun before starting
+application processes.
 
 The write task is intentionally one-way: it replaces legacy keys and changes
 the STI type to `Spree::Calculator::Shipping::WeightedShipping`. A downgrade to

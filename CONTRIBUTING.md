@@ -1,9 +1,8 @@
 # Contributing
 
-Thanks for helping improve Solidus Weighted Shipping. The project stays
-deliberately narrow: it provides a deterministic shipping-rate policy and the
-thinnest practical Solidus adapter. Carrier APIs, fulfillment, labels,
-tracking, and generic rules-engine abstractions belong elsewhere.
+Bug reports are most useful with a small rate table, the package's quantities
+and weights, the expected price, and the Ruby/Rails/Solidus versions involved.
+Use generated data rather than real customer orders.
 
 ## Set up the project
 
@@ -11,53 +10,48 @@ tracking, and generic rules-engine abstractions belong elsewhere.
 bin/setup
 bin/sandbox
 bin/rake
-bin/rails runner 'puts SolidusWeightedShipping::VERSION'
 ```
 
-`bin/sandbox` creates a disposable Solidus dummy application under
-`spec/dummy`. It is safe to rebuild and must not be committed.
+Use Ruby 3.3 or newer. The default bundle uses published Solidus 4.7 and Rails
+8.1. `bin/sandbox` rebuilds the disposable app under `spec/dummy`; do not put
+work you need to keep there. Install Chrome/Chromium for browser specs.
 
 ## Verify a change
 
-Run the focused spec while developing, then run the complete gates before
-submitting the change:
+Run the relevant specs while developing, then check coverage, style, mutation
+tests, and dependencies:
 
 ```sh
-bin/rake
 bin/rake quality:coverage
 bin/rake quality:lint
 bin/rake quality:mutation
+bundle exec bundle-audit check --update
 ```
 
-Tests should cover exact boundaries and failure behavior. Changes to pricing or
-eligibility need mutation evidence as well as example-based tests. Browser specs
-write admin and customer-flow evidence to `tmp/screenshots`; inspect those images
-when the rendered workflow changes.
+Pricing changes need examples at and just above their boundaries. Include
+failure cases and use decimal strings or `BigDecimal`, not Float literals.
+Inspect the screenshots in `tmp/screenshots` when admin behavior changes.
 
 ## Reproduce a compatibility row
 
-Set the Rails and Solidus versions before dependency resolution, then keep those
-variables on the dummy-app and test commands. For example:
+Use a separate checkout and keep the same version variables throughout:
 
 ```sh
-RAILS_VERSION=7.0 SOLIDUS_BRANCH=v4.6 ruby -S bundle install
-RAILS_VERSION=7.0 SOLIDUS_BRANCH=v4.6 bin/sandbox
-RAILS_VERSION=7.0 SOLIDUS_BRANCH=v4.6 bin/rake extension:specs
+export SOLIDUS_VERSION=4.6 RAILS_VERSION=7.2
+bundle install
+bin/sandbox
+bin/rake extension:specs SPEC_OPTS="--exclude-pattern spec/system/**/*_spec.rb"
 ```
 
-The supported rows are listed in the
-[testing guide](docs/testing.md#supported-matrix). Rebuild the dummy application
-whenever either version changes. If Bundler retains a resolution from another
-row, use a separate bundle path or remove only that disposable bundle before
-resolving again.
+See the [matrix and test guide](docs/testing.md#supported-matrix).
+`SOLIDUS_BRANCH=main` selects upstream development code instead of a published
+release. The local lockfile is ignored; update it when switching versions.
 
 ## Keep changes reviewable
 
-Update documentation whenever public names, preferences, behavior, support
-boundaries, or release steps change. Add an entry under `Unreleased` in
-`CHANGELOG.md` for changes users will notice.
+Keep commits focused on one change and its regression tests. Update the
+changelog and relevant documentation when behavior or support changes.
+Use Conventional Commit subjects such as `fix:`, `test:`, or `docs:`.
 
-Make each commit one coherent behavior, test, documentation, or maintenance
-change. Use Conventional Commit subjects such as `feat:`, `fix:`, `test:`,
-`docs:`, or `chore:`. Do not commit the generated dummy application, coverage
-output, packaged gems, or screenshots.
+Do not commit generated apps, coverage, packaged gems, screenshots, or local
+lockfiles. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

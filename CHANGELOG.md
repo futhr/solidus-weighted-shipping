@@ -3,10 +3,7 @@
 All notable changes to Solidus Weighted Shipping are recorded here.
 
 The changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Entries use
-Conventional Commit-style prefixes so each release can be traced to a clear
-product, compatibility, maintenance, or security concern.
-
+and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Historical releases were cut from version-specific Spree stable branches, not
 one linear release branch. Their entries were reconstructed from the preserved
 tags, tagged-tree diffs, and original GitHub release notes.
@@ -21,17 +18,17 @@ final maintenance commits were made after their last release tags.
 
 | Former branch | Preserved tag | Final commit | Release / compatibility |
 | --- | --- | --- | --- |
-| `1-1-stable` | [`spree-1-1-stable`] | [`6ab80f6`] | [1.1.2] |
-| `1-2-stable` | [`spree-1-2-stable`] | [`130d803`] | [1.2.0] |
-| `1-3-stable` | [`spree-1-3-stable`] | [`f01a42c`] | [1.3.0] |
-| `2-0-stable` | [`spree-2-0-stable`] | [`5dbdc07`] | [2.0.1] |
-| `2-1-stable` | [`spree-2-1-stable`] | [`60cd0d4`] | [2.1.0] |
-| `2-2-stable` | [`spree-2-2-stable`] | [`604f2e3`] | [2.2.0] |
-| `2-3-stable` | [`spree-2-3-stable`] | [`7987d01`] | [2.3.1] |
-| `2-4-stable` | [`spree-2-4-stable`] | [`b97661e`] | [2.4.0] |
-| `3-0-stable` | [`spree-3-0-stable`] | [`1600766`] | [3.0.0] |
-| `3-1-stable` | [`spree-3-1-stable`] | [`82c7463`] | [3.1.0] |
-| `master` | [`spree-3-3-alpha`] | [`b105df4`] | `3.3.0.alpha` / Spree `>= 3.1, < 4` |
+| `1-1-stable` | [`spree-1-1-stable`][spree-1-1-stable] | [`6ab80f6`][6ab80f6] | [1.1.2] |
+| `1-2-stable` | [`spree-1-2-stable`][spree-1-2-stable] | [`130d803`][130d803] | [1.2.0] |
+| `1-3-stable` | [`spree-1-3-stable`][spree-1-3-stable] | [`f01a42c`][f01a42c] | [1.3.0] |
+| `2-0-stable` | [`spree-2-0-stable`][spree-2-0-stable] | [`5dbdc07`][5dbdc07] | [2.0.1] |
+| `2-1-stable` | [`spree-2-1-stable`][spree-2-1-stable] | [`60cd0d4`][60cd0d4] | [2.1.0] |
+| `2-2-stable` | [`spree-2-2-stable`][spree-2-2-stable] | [`604f2e3`][604f2e3] | [2.2.0] |
+| `2-3-stable` | [`spree-2-3-stable`][spree-2-3-stable] | [`7987d01`][7987d01] | [2.3.1] |
+| `2-4-stable` | [`spree-2-4-stable`][spree-2-4-stable] | [`b97661e`][b97661e] | [2.4.0] |
+| `3-0-stable` | [`spree-3-0-stable`][spree-3-0-stable] | [`1600766`][1600766] | [3.0.0] |
+| `3-1-stable` | [`spree-3-1-stable`][spree-3-1-stable] | [`82c7463`][82c7463] | [3.1.0] |
+| `master` | [`spree-3-3-alpha`][spree-3-3-alpha] | [`b105df4`][b105df4] | `3.3.0.alpha` / Spree `>= 3.1, < 4` |
 
 ## [Unreleased]
 
@@ -39,83 +36,68 @@ Release candidate: `4.0.0.pre`.
 
 ### Breaking changes
 
-- `feat(identity)!`: rename the maintained project, gem, namespace, and primary
-  calculator to `solidus-weighted-shipping`, `solidus_weighted_shipping`,
-  `SolidusWeightedShipping`, and
-  `Spree::Calculator::Shipping::WeightedShipping`.
-- `feat(solidus)!`: replace the legacy whole-order calculator with the current
-  `Spree::ShippingCalculator#compute_package` and `Spree::Stock::Package`
-  integration.
-- `feat(config)!`: replace the two positional whitespace tables with one
-  validated `maximum weight: price` rate table.
+- Rename the gem to `solidus_weighted_shipping` and the calculator to
+  `Spree::Calculator::Shipping::WeightedShipping`. Existing stores must run
+  the preference/STI migration before starting application processes.
+- Require Ruby 3.3+ and Solidus 4.6.2 or 4.7. Test maintained Rails 7.2, 8.0,
+  and 8.1 combinations; retire Ruby 3.2 and Rails 7.0.
+- Calculate weight, item eligibility, and handling from the quoted package.
+  Free shipping continues to use the whole order's merchandise total.
+- Replace separate weight and price lists with a validated
+  `maximum weight: price` table.
 
 ### Added
 
-- `feat(domain)`: add immutable, framework-light rate-table, constraint,
-  package-input, calculator, decimal, and quote objects.
-- `feat(migration)`: add deterministic legacy preference and STI conversion,
-  including dry-run support and per-calculator failure reporting.
-- `feat(migration)`: recognize historical preference and STI data in the
-  explicit migration task without shipping the old require path, namespace, or
-  calculator class.
-- `test(domain)`: add exhaustive boundary, property, and mutation tests for
-  rate selection, overflow parcels, dimensions, free shipping, and handling.
-- `test(solidus)`: add real estimator, persistence, multi-package,
-  multi-currency, and no-write integration coverage.
-- `test(system)`: add eight asserted and inspected admin/customer browser
-  screenshots covering the complete weighted-shipping journey.
-- `test(audit)`: add the generated-app Rails command, final-audit record, and
-  explicit evidence for every supported structured/legacy input branch.
-- `ci(release)`: add the supported Ruby/Rails/Solidus matrix, coverage, lint,
-  mutation, browser, package-installation, dependency-review, advisory, and
-  Solidus edge jobs.
-- `ci(coverage)`: retain branch-aware LCOV reports as workflow artifacts and
-  publish them to Codecov with the repository-scoped upload token.
-
-### Changed
-
-- `refactor(scope)`: rate item weight, dimensions, merchandise value, and
-  handling from the quoted package; keep only the free-shipping threshold
-  order-scoped.
-- `refactor(numeric)`: use exact `BigDecimal` values and reject binary floats,
-  non-finite values, and non-terminating rationals.
-- `refactor(tooling)`: adopt `solidus_dev_support`, StandardRB, current RSpec,
-  a disposable sandbox, GitHub Actions, and a narrowly packaged runtime gem.
-- `docs(operations)`: document installation, configuration, architecture,
-  migration, rollback, verification, security, troubleshooting, and release.
-- `docs(release)`: use the renamed GitHub repository throughout installation,
-  package metadata, changelog, and release guidance.
-- `ci(release)`: publish stable version tags through RubyGems Trusted
-  Publishing after version, branch, test, mutation, style, and dependency
-  checks pass.
-- `chore(supply-chain)`: pin GitHub Actions to reviewed commit SHAs and restrict
-  gem pushes to RubyGems.org.
-- `ci(quality)`: make external Codecov activation explicit and remove avoidable
-  Git, Ruby, mutation-parser, Octokit, and coverage-discovery warnings from CI.
+- Plain Ruby pricing objects with explicit rated, free, empty, and unavailable
+  quotes; per-item dimensions and weight limits; fallback weight; handling fees;
+  and a free-shipping threshold.
+- Legacy preference migration with per-record transactions, failure reporting,
+  and a dry run that issues no data writes.
+- Boundary, property, mutation, Solidus integration, browser, and packaging
+  tests, with coverage reports and optional Codecov uploads.
+- Tag-triggered RubyGems Trusted Publishing after the shared CI checks.
 
 ### Fixed
 
-- `docs(release)`: retire completed branch-reconciliation steps and keep the
-  remaining publication protections explicit.
-- `fix(constraints)`: compare the longest and second-longest dimensions
-  independently of product orientation.
-- `fix(weight)`: apply the fallback weight consistently to missing, zero, and
-  negative historical product weights.
-- `fix(config)`: reject empty, malformed, duplicate, decreasing, negative, or
-  mismatched rate configuration before checkout.
-- `fix(runtime)`: make invalid configuration unavailable to the estimator
-  instead of raising an arbitrary checkout exception.
+- Reject malformed decimal preferences instead of allowing Solidus to convert
+  them to zero or truncate rational values.
+- Refresh cached policies after in-place rate-table edits.
+- Return a zero quote for an empty Solidus package without accessing a missing
+  order's currency.
+- Preserve exact totals and prices when the host sets a BigDecimal precision
+  limit.
+- Reject contradictory quote states and boolean dimensions; copy mutable
+  unavailable reasons so quote hashes remain stable.
+- Remove conflicting serialized keys during migration and validate calculators
+  that already use the new format.
+- Build from source archives without requiring Git. Include contributor and
+  security files referenced by the README.
+- Reject focused examples in CI and keep mutation runs from overwriting
+  coverage reports. Repair archive links in this changelog.
+
+### Changed
+
+- Use binary search for weight bands and reject excessive bands before
+  normalizing their values.
+- Resolve published Solidus versions by default. Development dependencies live
+  in the Gemfile, and BigDecimal is an explicit runtime dependency.
+- Replace repeated architecture diagrams and broad audit claims with concise
+  behavior documentation, measured results, and current release prerequisites.
 
 ### Security
 
-- `security(supply-chain)`: require RubyGems MFA metadata, weekly dependency
-  updates, dependency review, and advisory scanning with only documented,
-  development-only exceptions.
+- Require patched Rails versions in the development matrix and audit every
+  supported dependency resolution.
+- Pin workflow actions to commit SHAs, require MFA in gem metadata, and restrict
+  the push host to RubyGems.org.
+- Retain two documented development-only Puma exceptions while
+  `solidus_dev_support` requires Puma below 7. Production stores must audit
+  their own bundles.
 
 ### Removed
 
-- `chore(legacy)`: remove obsolete Travis, Guard, Hound, Reek, FactoryGirl-era,
-  committed-sandbox, and legacy frontend development machinery.
+- Legacy runtime aliases, the committed sandbox, old frontend code, and
+  obsolete Travis, Guard, Hound, Reek, and FactoryGirl configuration.
 
 ## [3.1.0] - 2017-02-03
 

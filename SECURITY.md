@@ -4,7 +4,7 @@
 
 Security fixes are made on `main` for the Ruby and Solidus versions in the
 [supported matrix](docs/testing.md#supported-matrix). Historical releases and
-the preserved `master` branch are not maintained.
+the archived Spree branches are not maintained.
 
 ## Report a vulnerability
 
@@ -19,8 +19,8 @@ data, credentials, or secrets.
 ## Dependency auditing
 
 CI and the weekly security workflow update the Ruby advisory database and fail
-on vulnerable dependencies. Dependabot checks both Bundler and GitHub Actions
-weekly.
+on vulnerable dependencies except for the scoped exceptions below. Dependency
+updates are reviewed manually; this repository has no Dependabot configuration.
 
 Two narrowly scoped, temporary audit exceptions are currently recorded for
 `CVE-2026-47736` and `CVE-2026-47737`. Both affect Puma's PROXY protocol v1
@@ -30,3 +30,7 @@ from the published gem's runtime dependency graph. `solidus_dev_support` 2.12
 constrains Puma below 7, while patched versions begin at 7.2.1 and 8.0.2. The
 exceptions must be removed as soon as upstream permits a patched Puma. They do
 not authorize ignoring any other advisory.
+
+Rechecked on 6 September 2026 against the Ruby advisory database and the
+published `solidus_dev_support` gem. These exceptions are for development and
+testing only; applications must audit their own production bundles.

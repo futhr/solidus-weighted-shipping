@@ -54,8 +54,8 @@ unchanged. Correct that calculator and repeat the dry run before writing.
 Export both variables before `bundle install` and rebuild the dummy app:
 
 ```sh
-RAILS_VERSION=7.0 SOLIDUS_BRANCH=v4.6 ruby -S bundle install
-RAILS_VERSION=7.0 SOLIDUS_BRANCH=v4.6 bin/rake clobber extension:test_app
+RAILS_VERSION=7.2 SOLIDUS_VERSION=4.6 ruby -S bundle install
+RAILS_VERSION=7.2 SOLIDUS_VERSION=4.6 bin/sandbox
 ```
 
 The repository lockfile is intentionally ignored for gem development. Do not
