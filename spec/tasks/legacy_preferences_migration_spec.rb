@@ -59,10 +59,47 @@ RSpec.describe "solidus_weighted_shipping:preferences:migrate" do
   it "supports a side-effect-free dry run" do
     ENV["DRY_RUN"] = "1"
     original = Spree::Calculator.unscoped.where(id: calculator_id).pick(:type, :preferences)
+    writes = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      writes << payload[:sql] if payload[:sql].match?(/\A\s*(?:INSERT|UPDATE|DELETE)\b/i)
+    end
 
     expect { task.invoke }.to output(/would migrate 1 calculator/).to_stdout
 
     expect(Spree::Calculator.unscoped.where(id: calculator_id).pick(:type, :preferences)).to eq(original)
+    expect(writes).to be_empty
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
+  it "reports invalid canonical calculators instead of silently skipping validation" do
+    invalid_preferences = {rate_table: "2: 6\n1: 9"}
+    Spree::Calculator.unscoped.where(id: calculator_id).update_all(
+      type: canonical_type, preferences: invalid_preferences
+    )
+
+    expect { task.invoke }
+      .to output(/calculator #{calculator_id}:.*strictly increasing/m).to_stderr
+      .and raise_error(SystemExit, /migration failed for 1 calculator/)
+
+    expect(Spree::Calculator.find(calculator_id).preferences).to include(invalid_preferences)
+  end
+
+  it "commits valid rows even when another calculator cannot be migrated" do
+    valid = Spree::Calculator::Shipping::WeightedShipping.create!(preferences: legacy_preferences)
+    valid.update_column(:type, legacy_type)
+    Spree::Calculator.unscoped.where(id: calculator_id).update_all(
+      preferences: {weight_table: "2 1", price_table: "6 9"}
+    )
+
+    expect { task.invoke }
+      .to output(/calculator #{calculator_id}:/).to_stderr
+      .and raise_error(SystemExit)
+
+    expect(Spree::Calculator.find(valid.id)).not_to be_legacy_preferences
+    expect(Spree::Calculator.unscoped.where(id: calculator_id).pick(:type)).to eq(legacy_type)
+  ensure
+    Spree::Calculator.unscoped.where(id: valid.id).delete_all if valid
   end
 
   it "reports already canonical calculators without writing them" do

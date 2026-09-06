@@ -16,24 +16,23 @@ namespace :solidus_weighted_shipping do
         outcome = nil
 
         Spree::Calculator.transaction(requires_new: true) do
-          row = Spree::Calculator.unscoped.where(id: calculator_id).lock
+          row = Spree::Calculator.unscoped.where(id: calculator_id, type: [legacy_type, canonical_type]).lock
           stored_type = row.pick(:type)
           next unless stored_type
 
           type_changed = stored_type != canonical_type
-          row.update_all(type: canonical_type) if type_changed
-
-          calculator = Spree::Calculator::Shipping::WeightedShipping.find(calculator_id)
+          calculator = if dry_run
+            Spree::Calculator::Shipping::WeightedShipping.new(preferences: row.pick(:preferences))
+          else
+            row.update_all(type: canonical_type) if type_changed
+            Spree::Calculator::Shipping::WeightedShipping.find(calculator_id)
+          end
           preferences_changed = calculator.migrate_legacy_preferences!
           outcome = (preferences_changed || type_changed) ? :migrated : :unchanged
 
-          if outcome == :migrated
-            raise ActiveRecord::RecordInvalid.new(calculator) unless calculator.valid?
+          raise ActiveRecord::RecordInvalid.new(calculator) unless calculator.valid?
 
-            calculator.save! unless dry_run
-          end
-
-          raise ActiveRecord::Rollback if dry_run && outcome == :migrated
+          calculator.save! if outcome == :migrated && !dry_run
         end
 
         migrated += 1 if outcome == :migrated
