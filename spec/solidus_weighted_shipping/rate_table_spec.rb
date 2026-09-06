@@ -32,7 +32,9 @@ RSpec.describe SolidusWeightedShipping::RateTable do
         "one: 6",
         "1: nope",
         "NaN: 1",
-        "1: Infinity"
+        "1: Infinity",
+        "1: \xFF",
+        "1: 2".encode(Encoding::UTF_16LE)
       ]
 
       invalid_values.each do |value|
@@ -110,6 +112,25 @@ RSpec.describe SolidusWeightedShipping::RateTable do
 
       expect { described_class.new(bands:) }
         .to raise_error(SolidusWeightedShipping::ConfigurationError, /more than 1000/)
+    end
+
+    it "rejects oversized tables before parsing their individual values" do
+      expect { described_class.new(bands: Array.new(described_class::MAX_BANDS + 1) { [nil, nil] }) }
+        .to raise_error(SolidusWeightedShipping::ConfigurationError, /more than 1000/)
+      text = (1..described_class::MAX_BANDS).map { |weight| "#{weight}: 1" }.join("\n")
+      expect { described_class.parse("#{text}\ninvalid") }
+        .to raise_error(SolidusWeightedShipping::ConfigurationError, /more than 1000/)
+      expect { described_class.from_legacy(thresholds: "1 " * 1001, prices: "1") }
+        .to raise_error(SolidusWeightedShipping::ConfigurationError, /more than 1000/)
+    end
+
+    it "selects every inclusive boundary in the largest supported table" do
+      large_table = described_class.new(bands: (1..described_class::MAX_BANDS).map { |weight| [weight, weight * 2] })
+
+      (1..described_class::MAX_BANDS).each do |weight|
+        expect(large_table.price_for(weight)).to eq(weight * 2)
+        expect(large_table.price_for(decimal(weight.to_s) - decimal("0.001"))).to eq(weight * 2)
+      end
     end
   end
 

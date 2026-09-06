@@ -24,17 +24,24 @@ module SolidusWeightedShipping
       unless value.is_a?(String)
         raise ConfigurationError, "rate table must be text with one 'maximum weight: price' band per line"
       end
+      unless value.valid_encoding? && value.encoding.ascii_compatible?
+        raise ConfigurationError, "rate table must use valid ASCII-compatible text"
+      end
 
-      entries = value.lines.filter_map do |line|
+      entries = []
+      value.each_line do |line|
         line = line.strip
         next if line.empty?
+        if entries.length == MAX_BANDS
+          raise ConfigurationError, "rate table must not contain more than #{MAX_BANDS} bands"
+        end
 
         match = LINE_PATTERN.match(line)
         unless match
           raise ConfigurationError, "rate table line must use 'maximum weight: price': #{line.inspect}"
         end
 
-        [match[1].strip, match[2].strip]
+        entries << [match[1].strip, match[2].strip]
       end
 
       new(bands: entries)
@@ -52,15 +59,22 @@ module SolidusWeightedShipping
     end
 
     def self.parse_legacy_sequence(value, name:)
-      values = value.is_a?(String) ? value.split : Array(value)
+      values = value.is_a?(String) ? value.strip.split(nil, MAX_BANDS + 1) : Array(value)
       raise ConfigurationError, "#{name} must not be empty" if values.empty?
+      if values.length > MAX_BANDS
+        raise ConfigurationError, "#{name} must not contain more than #{MAX_BANDS} bands"
+      end
 
       values
     end
     private_class_method :parse_legacy_sequence
 
     def initialize(bands:)
-      @bands = Array(bands).map.with_index { |band, index| normalize_band(band, index:) }.freeze
+      entries = Array(bands)
+      if entries.length > MAX_BANDS
+        raise ConfigurationError, "rate table must not contain more than #{MAX_BANDS} bands"
+      end
+      @bands = entries.map.with_index { |band, index| normalize_band(band, index:) }.freeze
       validate!
       freeze
     end
@@ -93,7 +107,7 @@ module SolidusWeightedShipping
       raise InputError, "parcel weight must be greater than zero" unless weight.positive?
       raise InputError, "parcel weight exceeds the maximum band" if weight > max_weight
 
-      bands.find { |band| weight <= band.maximum_weight_in_store_units }.price_in_currency_units
+      bands.bsearch { |band| weight <= band.maximum_weight_in_store_units }.price_in_currency_units
     end
 
     def max_weight
@@ -132,10 +146,6 @@ module SolidusWeightedShipping
 
     def validate!
       raise ConfigurationError, "rate table must not be empty" if bands.empty?
-      if bands.length > MAX_BANDS
-        raise ConfigurationError, "rate table must not contain more than #{MAX_BANDS} bands"
-      end
-
       if bands.any? { |band| !band.maximum_weight_in_store_units.positive? }
         raise ConfigurationError, "weight thresholds must be greater than zero"
       end
