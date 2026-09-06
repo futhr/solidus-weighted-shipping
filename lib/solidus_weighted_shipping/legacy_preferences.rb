@@ -18,9 +18,11 @@ module SolidusWeightedShipping
       default_weight: :default_item_weight
     }.freeze
     LEGACY_KEYS = (RATE_KEYS + SCALAR_KEYS.keys).freeze
+    PRESERVED_KEYS = %i[handling_fee currency].freeze
 
     def self.legacy?(preferences)
-      LEGACY_KEYS.any? { |key| key?(preferences, key) }
+      LEGACY_KEYS.any? { |key| key?(preferences, key) } ||
+        PRESERVED_KEYS.any? { |key| preferences.key?(key.to_s) }
     end
 
     def self.migrate(preferences)
@@ -45,6 +47,16 @@ module SolidusWeightedShipping
         migrated[canonical_key] = fetch(source, legacy_key)
         delete(migrated, legacy_key)
         migrated_keys << legacy_key
+      end
+
+      # These names did not change, but Solidus reads preferences by symbol.
+      # A stored string key must take precedence over a merged symbol default.
+      PRESERVED_KEYS.each do |key|
+        next unless source.key?(key.to_s)
+
+        delete(migrated, key)
+        migrated[key] = source.fetch(key.to_s)
+        migrated_keys << key
       end
 
       Migration.new(preferences: migrated, migrated_keys: migrated_keys.freeze)

@@ -58,6 +58,19 @@ RSpec.describe SolidusWeightedShipping::LegacyPreferences do
       expect(described_class.legacy?(source)).to be(false)
     end
 
+    it "preserves unchanged fees and currency from string-keyed historical data" do
+      migration = described_class.migrate(
+        handling_fee: decimal("10"),
+        "weight_table" => "1 2",
+        "price_table" => "3 4",
+        "handling_fee" => "2.50",
+        "currency" => "EUR"
+      )
+
+      expect(migration.preferences).to include(handling_fee: "2.50", currency: "EUR")
+      expect(migration.preferences).not_to include("handling_fee", "currency")
+    end
+
     it "removes stale string-keyed canonical values before writing migrated values" do
       migration = described_class.migrate(
         "rate_table" => "1: 99",
@@ -87,6 +100,8 @@ RSpec.describe SolidusWeightedShipping::LegacyPreferences do
     it "detects symbol and string legacy keys" do
       expect(described_class.legacy?(max_price: "100")).to be(true)
       expect(described_class.legacy?("default_weight" => "1")).to be(true)
+      expect(described_class.legacy?("handling_fee" => "2.50")).to be(true)
+      expect(described_class.legacy?("currency" => "EUR")).to be(true)
     end
   end
 end

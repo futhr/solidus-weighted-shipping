@@ -149,6 +149,23 @@ RSpec.describe Spree::Calculator::Shipping::WeightedShipping do
     expect(calculator.preferred_rate_table).to eq("1: 5\n2: 8")
   end
 
+  it "preserves a string-keyed historical handling fee during migration" do
+    calculator.preferences = {
+      "weight_table" => "1 2",
+      "price_table" => "5 8",
+      "handling_fee" => "2.50",
+      "currency" => "EUR"
+    }
+
+    calculator.migrate_legacy_preferences!
+
+    expect(calculator.preferred_handling_fee).to eq("2.50")
+    expect(calculator.preferences[:currency]).to eq("EUR")
+    expect(calculator).to be_valid
+    allow(content_item).to receive(:price).and_return(BigDecimal("40"))
+    expect(calculator.compute_package(package)).to eq(BigDecimal("42.50"))
+  end
+
   it "uses package merchandise as the order total when no order is available" do
     allow(package).to receive(:order).and_return(nil)
 
