@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require "tmpdir"
+require "fileutils"
+require "open3"
+require "rubygems/package"
+
 RSpec.describe "the packaged gem" do
   subject(:specification) do
     Gem::Specification.load(File.expand_path("../../solidus_weighted_shipping.gemspec", __dir__))
@@ -23,6 +28,8 @@ RSpec.describe "the packaged gem" do
       "lib/solidus_weighted_shipping/domain.rb",
       "app/models/spree/calculator/shipping/weighted_shipping.rb",
       "README.md",
+      "CONTRIBUTING.md",
+      "SECURITY.md",
       "docs/README.md",
       "docs/architecture.md",
       "docs/migration.md",
@@ -34,6 +41,37 @@ RSpec.describe "the packaged gem" do
     expect(specification.files.grep(/spree_postal_service/)).to be_empty
     expect(specification.files).not_to include("spree_postal_service.gemspec")
     expect(specification.files.grep(%r{\A(?:spec|sandbox|tmp)/})).to be_empty
+  end
+
+  it "builds and loads the packaged domain from a source archive without Git" do
+    project_root = File.expand_path("../..", __dir__)
+    Dir.mktmpdir("weighted-shipping-package") do |directory|
+      specification.files.each do |file|
+        destination = File.join(directory, file)
+        FileUtils.mkdir_p(File.dirname(destination))
+        FileUtils.cp(File.join(project_root, file), destination)
+      end
+
+      output, status = Open3.capture2e(
+        Gem.ruby, "-S", "gem", "build", "solidus_weighted_shipping.gemspec", "--strict",
+        chdir: directory
+      )
+      expect(status.success?).to be(true), output
+
+      artifact = Gem::Package.new(File.join(directory, "solidus_weighted_shipping-#{specification.version}.gem"))
+      expect(artifact.contents.sort).to eq(specification.files.sort)
+      installed = File.join(directory, "installed")
+      artifact.extract_files(installed)
+
+      # Avoid Bundler and the checkout's load path when requiring the artifact.
+      output, status = Open3.capture2e(
+        {"RUBYOPT" => nil, "RUBYLIB" => nil, "BUNDLE_GEMFILE" => nil},
+        Gem.ruby, "-I#{installed}/lib", "-e",
+        'require "solidus_weighted_shipping/domain"; abort unless SolidusWeightedShipping::RateTable.parse("1: 2").price_for("1") == 2',
+        chdir: directory
+      )
+      expect(status.success?).to be(true), output
+    end
   end
 
   it "declares only the narrow runtime dependencies" do

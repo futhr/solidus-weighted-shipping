@@ -23,10 +23,9 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = Gem::Requirement.new(">= 3.3")
 
-  files = Dir.chdir(__dir__) { `git ls-files -z`.split("\x0").select { |file| File.file?(file) } }
-  spec.files = files.select do |file|
-    file.match?(%r{\A(?:app|config|docs|lib)/}) ||
-      %w[CHANGELOG.md LICENSE.md README.md].include?(file)
+  spec.files = Dir.chdir(__dir__) do
+    Dir["app/**/*.rb", "config/locales/*.yml", "docs/**/*.md", "lib/**/*.{rb,rake}"].sort +
+      %w[CHANGELOG.md CONTRIBUTING.md LICENSE.md README.md SECURITY.md solidus_weighted_shipping.gemspec]
   end
   spec.require_paths = ["lib"]
 
