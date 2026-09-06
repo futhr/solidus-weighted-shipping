@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Torsten Rüger", "Tobias Bohwalli"]
   spec.email = ["torsten@villataika.fi", "hi@futhr.io"]
 
-  spec.summary = "Weighted and parcel-rule shipping calculator for Solidus"
-  spec.description = "A deterministic Solidus weighted-shipping calculator with configurable rate bands, parcel constraints, handling fees, and free-shipping thresholds."
+  spec.summary = "Weight-based shipping rates for Solidus"
+  spec.description = "Shipping rates for Solidus based on package weight, item size limits, handling fees, and order-level free shipping."
   spec.homepage = "https://github.com/futhr/solidus-weighted-shipping"
   spec.license = "BSD-3-Clause"
 

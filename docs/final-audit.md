@@ -1,102 +1,117 @@
-# Final audit record
+# Audit report
 
-Audit date: 17 August 2026.
+Reviewed on 6 September 2026, starting at commit `0750cfd`.
 
-## Decision
+The candidate has been audited, corrected, tested, and prepared for a local
+RubyGems build. It remains version `4.0.0.pre`. No tag, push, publication,
+repository visibility change, or GitHub configuration change was performed.
 
-Maintain. The extension fills a verified Solidus ecosystem gap with a narrow,
-deterministic shipping policy and does not duplicate carrier or fulfillment
-systems.
+## Findings addressed
 
-## Final repository name
+| Finding | Impact and correction | Commit |
+| --- | --- | --- |
+| Decimal preferences were converted with Solidus's permissive `to_d`. | Invalid free-shipping thresholds could become zero, and rational fees could be truncated. Preserve bad input for validation and coerce valid decimals exactly. | `a1061f3` |
+| Cached rate signatures shared mutable strings. | An in-place table edit could keep charging an old rate. Copy and freeze each signature value. | `4732027` |
+| Empty Solidus packages have no order. | Quoting them raised while reading currency. Use the attached shipment's order currency or the configured default for a zero quote. | `53c9f5b` |
+| Migration could leave two versions of a canonical key. | Remove old string and symbol forms before assigning the migrated value. | `174d1ce` |
+| Dry runs wrote temporary STI updates; canonical rows skipped validation. | Make dry mode read-only, validate all matching calculators, and test failure isolation. | `d972961` |
+| Band limits were checked after parsing every value. | Reject oversized tables earlier, reject invalid text encodings, and use binary search for lookup. | `3eaf41d` |
+| Quotes allowed contradictory states and mutable reasons. | Validate weights, parcel counts, and fee totals; copy reason strings. Reject boolean dimensions. | `fce8bc9` |
+| Host decimal limits rounded arithmetic. | Calculate at full precision and restore the host setting, including on exceptions. | `4d47375` |
+| Development used an unreleased Solidus branch and obsolete matrix entries. | Default to published gems, update tools, require Ruby 3.3+, declare BigDecimal, and test maintained Rails lines. | `e1c13c1` |
+| Packaging depended on Git and omitted linked documents. | Use an explicit file allowlist; test a strict build from a source archive and load the extracted domain. | `cdc5c4e` |
+| Focused specs could pass CI; mutation runs rewrote coverage. | Reject focus/empty suites and enable coverage only for coverage runs. Respect custom test-app paths. | `fb1e119` |
+| Passing compatibility tests hid vulnerable Rails resolutions. | Require patched Rails minimums and audit every matrix row. | `7359e9b` |
+| Currency tests used integer prices for every currency. | Verify JPY whole units and KWD three-decimal amounts without implicit rounding. | `204f91d` |
+| Docs repeated diagrams and overstated verification. | Explain actual boundaries, fix archive links, correct Codecov/Dependabot claims, and separate local preparation from publication. | `c7a0efa` |
 
-`futhr/solidus-weighted-shipping`. The rename is complete and the canonical URL
-is used in package and installation metadata.
+The pricing boundaries were preserved: item limits and rate bands are inclusive;
+free shipping requires an order total strictly above the threshold; handling
+applies at or below its package threshold. Negative historical product weights
+still use the fallback. Overflow remains a weight-based pricing rule, not a
+physical packing algorithm.
 
-## Gem namespace
+## Verification
 
-`solidus_weighted_shipping`. The new gem exposes no legacy require, namespace,
-or calculator constant. The new gem name was not published on RubyGems when
-checked on the audit date; availability must be checked again at publication
-time.
+Tests were run locally on macOS/ARM64, with separate dependency resolutions.
+These are local results; remote GitHub Actions checks have not been run for the
+new commits because nothing was pushed.
 
-## Evidence
+| Ruby | Rails | Solidus | Result |
+| --- | --- | --- | --- |
+| 3.3.12 | 7.2.3.2 | 4.6.2 | 102 non-browser examples passed |
+| 3.4.10 | 7.2.3.2 | 4.6.2 | 102 non-browser examples passed |
+| 3.4.10 | 7.2.3.2 | 4.7.0 | 102 non-browser examples passed |
+| 3.4.10 | 8.0.5.1 | 4.7.0 | 102 non-browser examples passed |
+| 4.0.6 | 8.1.3.1 | 4.7.0 | 107 examples passed, including browser specs |
 
-- Pure Ruby policy objects own parsing, exact decimal arithmetic, eligibility,
-  parcel decomposition, and quote state.
-- The Solidus adapter uses public shipping calculator/package/estimator seams
-  and performs no override or monkey patch.
-- Configuration validation fails closed in estimation and appears in the real
-  Solidus admin form.
-- The extension owns no network, secret, PII, controller, route, table, carrier,
-  tracking, label, or shipment-lifecycle behavior.
+- Coverage: 99.28% of lines (549/553) and 96.82% of branches (213/220).
+- Mutation: all 382 selected mutants killed, with no survivors or timeouts.
+  Checked on Ruby 3.3 and 4.0; Ruby 4.0 emits a parser compatibility warning.
+- StandardRB, Solidus RuboCop rules, actionlint, and markdownlint passed.
+- An intentionally focused test was rejected with `CI=true`.
+- The eight browser screenshots were inspected: expected rates and admin
+  validation appeared correctly with generated data.
+- The source-archive packaging test passed, including a strict gem build and
+  domain load outside the checkout.
+- Band-search microbenchmark: 10,000 lookups near the final band of a 1,000-band
+  table took about 0.322 seconds with linear search and 0.0034 seconds with
+  binary search. This measures lookup only, not complete checkout throughput.
 
-## Compatibility
+Commands are in [testing.md](testing.md). Local logs and browser images remain
+under `tmp/`; they are not part of the published package.
 
-- Ruby 3.2 or newer.
-- Solidus 4.7 primary; Solidus 4.6 secondary while security-supported.
-- Rails/Solidus combinations are declared and exercised by the CI matrix in
-  [testing.md](testing.md#supported-matrix).
-- Solidus 4.5 and earlier are intentionally unsupported.
+## Dependencies and advisories
 
-## Migration
+The primary bundle uses Solidus 4.7.0, Rails 8.1.3.1, solidus_support 0.15.0,
+solidus_dev_support 2.12.0, BigDecimal 4.1.2, Mutant 0.16.3, Rantly 3.0.0,
+Standard 1.56.0, and Bundler Audit 0.9.3. The dependency graph was refreshed,
+including Selenium and rubyzip.
 
-The deterministic preference/STI migration, dry run, failure isolation,
-deployment order, and one-way rollback implication are documented in
-[migration.md](migration.md).
+Each supported bundle passed Bundler Audit with the existing two Puma
+exceptions. The advisory database was updated to
+`e7179ad21701894b75796c5ddd72e5fbfc446165` (5 September 2026).
+This means no *unignored* advisories, not an exception-free bundle.
+`solidus_dev_support` still constrains Puma below the patched versions.
+See [SECURITY.md](../SECURITY.md) for the conditions and removal criteria.
 
-## RubyGems ownership
+Version and support checks used the published
+[Solidus gem metadata](https://rubygems.org/gems/solidus_core),
+[development-support metadata](https://rubygems.org/gems/solidus_dev_support),
+[Ruby maintenance branches](https://www.ruby-lang.org/en/downloads/branches/),
+and [Rails maintenance policy](https://guides.rubyonrails.org/maintenance_policy.html).
+All existing action pins were checked against their upstream refs; no pin
+update was needed.
 
-On the audit date, RubyGems reported `spree_postal_service` 2.4.0 with 27,814
-downloads and owner `futhr`. The historical versions and Git tags remain
-available; do not yank or publish another old-name release merely for symmetry.
-RubyGems returned 404 for `solidus_weighted_shipping`, so the new name was
-available but not reserved. A pending Trusted Publisher for the new gem,
-maintainer MFA, and protected `release` environment cannot be proved from a
-source checkout and remain release gates.
+## External release prerequisites
 
-## GitHub operations
+Read-only GitHub checks on the audit date showed:
 
-The repository rename and history reconciliation are complete. Commit
-`30ac47c` records the ancestry-preserving merge. A follow-up verification on 18
-August 2026 confirmed that:
+- `main` is the default branch and is protected by active history and PR rules.
+- No GitHub environments are configured, so the intended protected `release`
+  environment still needs to be created.
+- No release-tag ruleset is configured.
+- Secret scanning and push protection are disabled. Enable them through the
+  repository's normal maintainer process if desired.
 
-- `main` is the default branch and is synchronized with `origin/main`;
-- the repository description and topics describe the maintained Solidus gem;
-- private vulnerability reporting is enabled; and
-- historical pull request #3 is closed.
+RubyGems returned HTTP 404 for `solidus_weighted_shipping`. That does not
+reserve the name or prove access to a pending Trusted Publisher. Maintainer
+MFA and RubyGems publisher ownership still need account-side verification.
 
-GitHub still reports no protection on `main`, no repository rulesets, and no
-`release` environment. Secret scanning and push protection are also disabled.
-These are current publication gates, along with RubyGems Trusted Publisher
-ownership and maintainer MFA; the completed history merge must not be repeated.
+Before publishing, configure the release environment and tag protection,
+verify Trusted Publishing, choose the stable version/date, and run the remote
+checks on the final commit. Repository visibility is a user-only setting.
+The [release guide](release.md) gives the remaining steps.
 
-## Provider/API status
+## Scope and limits
 
-Not applicable. This extension makes no provider or HTTP calls.
+The audit covered runtime code, Solidus integration, migration, tests,
+dependencies, workflows, package contents, and documentation. It does not
+establish that every possible host customization is compatible. Solidus
+`main`, other databases, and a real storefront checkout were not exercised
+locally. Browser coverage uses the real admin and a test-only estimator page.
 
-## Test evidence
-
-Required evidence comprises the supported CI matrix, line/branch coverage,
-selected mutation targets, a clean generated Solidus application, real
-estimator/persistence integration, package installation, dependency audit, and
-eight semantically asserted browser screenshots. Exact commands are listed in
-[testing.md](testing.md#one-shot-verification).
-
-## Known limitations
-
-- Weight and dimension values use store units; the gem does not convert units.
-- Rate amounts use decimal order-currency units; one calculator does not hold
-  separate tables per currency.
-- Browser evidence uses a test-only estimator preview because the extension
-  intentionally does not package a storefront.
-- Branch/environment/tag protection, secret scanning and push protection,
-  RubyGems Trusted Publisher/MFA, and green remote checks on the exact release
-  commit require authorized external configuration.
-
-## Release action
-
-Do not publish `4.0.0` until every external gate above is confirmed, the full
-matrix is green on the exact candidate commit, all eight screenshots are
-inspected, and the workflow-retained gem checksum matches the subsequently
-downloaded RubyGems artifact.
+Tables are limited by band count, not by total text bytes or numeric magnitude.
+Host applications should apply their normal request/configuration limits.
+The library does not convert currencies or physical units, apply carrier
+packing rules, or round amounts to currency minor units.
