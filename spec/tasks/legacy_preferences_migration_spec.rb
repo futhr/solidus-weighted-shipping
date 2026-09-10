@@ -7,7 +7,10 @@ RSpec.describe "solidus_weighted_shipping:preferences:migrate" do
   subject(:task) { Rake::Task["solidus_weighted_shipping:preferences:migrate"] }
 
   before(:all) do
-    Rails.application.load_tasks unless Rake::Task.task_defined?("solidus_weighted_shipping:preferences:migrate")
+    task_name = "solidus_weighted_shipping:preferences:migrate"
+    Rails.application.load_tasks
+    Rake::Task[task_name].clear if Rake::Task.task_defined?(task_name)
+    load File.expand_path("../../lib/tasks/solidus_weighted_shipping.rake", __dir__)
   end
 
   before do

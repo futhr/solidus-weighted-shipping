@@ -3,12 +3,12 @@
 RSpec.describe SolidusWeightedShipping::PackageInput do
   describe SolidusWeightedShipping::PackageInput::Item do
     it "normalizes exact numeric values and pads missing dimensions" do
-      item = weighted_item(quantity: "2", unit_price: "9.99", weight: nil, dimensions: ["12"])
+      item = weighted_item(quantity: "2", unit_price: "9.99", weight: nil, dimensions: [nil, "12"])
 
       expect(item.quantity).to eq(2)
       expect(item.unit_price_in_currency_units).to eq(decimal("9.99"))
       expect(item.weight_in_store_units).to be_nil
-      expect(item.dimensions_in_store_units).to eq(%w[12 0 0].map { |value| decimal(value) })
+      expect(item.dimensions_in_store_units).to eq(%w[0 12 0].map { |value| decimal(value) })
       expect(item).to be_frozen
       expect(item.dimensions_in_store_units).to be_frozen
     end
