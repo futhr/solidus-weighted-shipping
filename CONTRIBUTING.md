@@ -12,7 +12,7 @@ bin/sandbox
 bin/rake
 ```
 
-Use Ruby 3.3 or newer. The default bundle uses published Solidus 4.7 and Rails
+Use Ruby 3.3 or newer. The default bundle uses published Solidus 4.8 and Rails
 8.1. `bin/sandbox` rebuilds the disposable app under `spec/dummy`; do not put
 work you need to keep there. Install Chrome/Chromium for browser specs.
 

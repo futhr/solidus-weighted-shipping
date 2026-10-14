@@ -62,7 +62,7 @@ RSpec.describe "Weighted shipping browser flows", type: :system, js: true do
     fill_in "Rate table (maximum weight: price, one band per line)", with: "2: 4\n1: 7"
     click_button "Update"
 
-    expect(page).to have_content("weight thresholds must be strictly increasing")
+    expect(page).to have_css(".flash.error", text: "weight thresholds must be strictly increasing")
     expect(shipping_method.reload.calculator.preferred_rate_table).to eq("2: 4\n10: 7")
     capture_screenshot("08-admin-invalid-config")
   end

@@ -19,20 +19,20 @@ jobs:
   bundler-audit:
     runs-on: ubuntu-latest
     env:
-      SOLIDUS_VERSION: "4.7"
+      SOLIDUS_VERSION: "4.8"
       RAILS_VERSION: "8.1"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1.329.0
         with:
           ruby-version: "4.0"
           bundler-cache: true
-          cache-version: security-v4.7-rails-8.1
+          cache-version: security-v4.8-rails-8.1
       - run: bundle exec bundle-audit check --update
 
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

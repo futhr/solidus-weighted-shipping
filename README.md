@@ -21,7 +21,7 @@ It supports:
 
 ## Requirements
 
-Ruby 3.3 or newer and Solidus 4.6.2 or 4.7 are supported. See the
+Ruby 3.3 or newer and Solidus 4.6.2, 4.7, or 4.8 are supported. See the
 [tested compatibility matrix](docs/testing.md#supported-matrix) for the exact
 Ruby and Rails combinations.
 

@@ -39,7 +39,7 @@ Release candidate: `4.0.0.pre`.
 - Rename the gem to `solidus_weighted_shipping` and the calculator to
   `Spree::Calculator::Shipping::WeightedShipping`. Existing stores must run
   the preference/STI migration before starting application processes.
-- Require Ruby 3.3+ and Solidus 4.6.2 or 4.7. Test maintained Rails 7.2, 8.0,
+- Require Ruby 3.3+ and Solidus 4.6.2, 4.7, or 4.8. Test maintained Rails 7.2, 8.0,
   and 8.1 combinations; retire Ruby 3.2 and Rails 7.0.
 - Calculate weight, item eligibility, and handling from the quoted package.
   Free shipping continues to use the whole order's merchandise total.
@@ -77,6 +77,9 @@ Release candidate: `4.0.0.pre`.
 - Preserve existing package artifacts and coverage when rebuilding the sandbox.
 
 ### Changed
+
+- Use Solidus 4.8 and patched Rails 8.1.4 by default, update the Standard and Mutant tool requirements, and refresh pinned CI actions. Retain the existing compatibility rows and add Solidus 4.8.
+- Wait for the admin validation flash after a rejected form submission in the browser suite.
 
 - Use binary search for weight bands and reject excessive bands before
   normalizing their values.

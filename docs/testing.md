@@ -67,10 +67,11 @@ fork pull requests and release tags. RubyGems publication uses OIDC separately.
 | 3.4 | 7.2 | 4.7 |
 | 3.4 | 8.0 | 4.7 |
 | 4.0 | 8.1 | 4.7 |
+| 4.0 | 8.1 | 4.8 |
 
 Each row resolves published gems within the requested minor versions and runs
 the suite without browser specs, followed by a dependency audit. The quality
-job runs the full suite on Ruby 4.0/Rails 8.1/Solidus 4.7. Solidus `main` is
+job runs the full suite on Ruby 4.0/Rails 8.1/Solidus 4.8. Solidus `main` is
 tested separately as an informational job. The release workflow reuses CI.
 
 Ruby 3.2 and Rails 7.0 are no longer supported by this extension.
@@ -87,7 +88,7 @@ bin/rake extension:specs SPEC_OPTS="--exclude-pattern spec/system/**/*_spec.rb"
 ```
 
 `SOLIDUS_VERSION` selects published releases. Set `SOLIDUS_BRANCH=main` only
-when testing upstream development code. The default is Solidus 4.7 with Rails
+when testing upstream development code. The default is Solidus 4.8 with Rails
 8.1. Lockfiles are local and ignored; update them when switching rows.
 
 ## Browser artifacts

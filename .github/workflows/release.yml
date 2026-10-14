@@ -29,19 +29,19 @@ jobs:
       contents: write
       id-token: write
     env:
-      SOLIDUS_VERSION: "4.7"
+      SOLIDUS_VERSION: "4.8"
       RAILS_VERSION: "8.1"
       MUTANT_JOBS: "2"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+      - uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1.329.0
         with:
           ruby-version: "4.0"
           bundler-cache: true
-          cache-version: release-v4.7-rails-8.1
+          cache-version: release-v4.8-rails-8.1
       - name: Verify release ref and version
         run: |
           git fetch --no-tags origin main:refs/remotes/origin/main
@@ -50,10 +50,10 @@ jobs:
           test "$GITHUB_REF_NAME" = "$expected_tag"
           ruby -Ilib -rsolidus_weighted_shipping/version -e 'abort "prerelease versions require a separate release decision" if Gem::Version.new(SolidusWeightedShipping::VERSION).prerelease?'
       - run: bundle exec bundle-audit check --update
-      - uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1
+      - uses: rubygems/release-gem@7f9650160c1a4e7989fdc9855807bdbd421d8b6b # v1.4.1
       - name: Record published artifact checksum
         run: sha256sum pkg/*.gem > pkg/SHA256SUMS
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: released-gem-${{ github.ref_name }}
           path: |
