@@ -14,6 +14,8 @@ rails_gem_version = Gem::Version.new(rails_version)
 rails_minor = rails_gem_version.segments.first(2).join(".")
 rails_minimum = {"7.2" => "7.2.4", "8.0" => "8.0.5.1", "8.1" => "8.1.4"}.fetch(rails_minor, "#{rails_minor}.0")
 gem "rails", "~> #{rails_minor}.0", ">= #{rails_minimum}"
+# Active Support 8.0 passes quirks_mode, which JSON 3 rejects.
+gem "json", "< 3" if rails_minor == "8.0"
 gem "sqlite3", "~> 2.0"
 
 gem "csv" if Gem.ruby_version >= Gem::Version.new("3.4")

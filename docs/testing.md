@@ -74,6 +74,10 @@ the suite without browser specs, followed by a dependency audit. The quality
 job runs the full suite on Ruby 4.0/Rails 8.1/Solidus 4.8. Solidus `main` is
 tested separately as an informational job. The release workflow reuses CI.
 
+The Rails 8.0 development bundle keeps `json` below 3 because its JSON encoder
+passes the removed `quirks_mode` option. Remove this bound when the Rails 8.0
+encoder supports the new JSON API. Other matrix rows resolve JSON normally.
+
 Ruby 3.2 and Rails 7.0 are no longer supported by this extension.
 See [Ruby maintenance branches](https://www.ruby-lang.org/en/downloads/branches/)
 and the [Rails maintenance policy](https://guides.rubyonrails.org/maintenance_policy.html).
